@@ -1,0 +1,1285 @@
+<title>Circles</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=DM+Mono:wght@400;500&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --bg:#F4F1F7; --ground:#EAE4EE;
+  --surface:#FFFFFF; --surface-2:#F3EFF6; --surface-3:#EDE7F1;
+  --line:#E2DAE8; --line-strong:#CFC3D8;
+  --ink:#241C2B; --ink-2:#6B6172; --ink-3:#8F849A;
+  --accent:#8A2F63; --accent-hover:#73264F; --accent-ink:#FFFFFF; --accent-soft:#F8E7F1; --accent-line:#E7C7DC;
+  --go:#1E7A58; --go-soft:#E1F2EA;
+  --maybe:#A96C12; --maybe-soft:#F8EEDC;
+  --no:#A3415A; --no-soft:#F8E5E9;
+  --shadow:0 1px 2px rgba(36,28,43,.06), 0 8px 24px -12px rgba(36,28,43,.18);
+  --r:14px; --r-sm:9px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#1A151F; --ground:#120E16;
+    --surface:#221C29; --surface-2:#2A2331; --surface-3:#332A3B;
+    --line:#372E41; --line-strong:#4A3E56;
+    --ink:#F3EDF6; --ink-2:#AFA2B9; --ink-3:#8B7E96;
+    --accent:#EE84B6; --accent-hover:#F79AC4; --accent-ink:#2B0C1D; --accent-soft:#3B2130; --accent-line:#563145;
+    --go:#5CC79A; --go-soft:#1D3830;
+    --maybe:#E0A751; --maybe-soft:#3A2F1C;
+    --no:#EC8298; --no-soft:#3B2129;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 26px -14px rgba(0,0,0,.7);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#1A151F; --ground:#120E16;
+  --surface:#221C29; --surface-2:#2A2331; --surface-3:#332A3B;
+  --line:#372E41; --line-strong:#4A3E56;
+  --ink:#F3EDF6; --ink-2:#AFA2B9; --ink-3:#8B7E96;
+  --accent:#EE84B6; --accent-hover:#F79AC4; --accent-ink:#2B0C1D; --accent-soft:#3B2130; --accent-line:#563145;
+  --go:#5CC79A; --go-soft:#1D3830;
+  --maybe:#E0A751; --maybe-soft:#3A2F1C;
+  --no:#EC8298; --no-soft:#3B2129;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 26px -14px rgba(0,0,0,.7);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{
+  background:var(--ground);
+  color:var(--ink);
+  font-family:"Figtree",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:15px; line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{font-family:"Bricolage Grotesque","Figtree",sans-serif;margin:0;text-wrap:balance;letter-spacing:-.015em}
+p{margin:0}
+button{font:inherit;color:inherit;cursor:pointer;border:none;background:none}
+input,textarea,select{font:inherit;color:inherit}
+a{color:var(--accent)}
+svg{width:15px;height:15px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.pill svg{width:13px;height:13px}
+
+/* ---------- app frame ---------- */
+#app{
+  max-width:468px; margin:0 auto; min-height:100svh;
+  background:var(--bg);
+  border-left:1px solid var(--line); border-right:1px solid var(--line);
+  display:flex; flex-direction:column; position:relative;
+}
+.topbar{
+  position:sticky; top:0; z-index:20;
+  display:flex; align-items:center; gap:10px;
+  padding:12px 14px; min-height:56px;
+  background:color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--line);
+}
+.topbar .tb-title{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:17px;line-height:1.2;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.topbar .tb-sub{display:block;font-family:"DM Mono",monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);font-weight:400}
+.iconbtn{
+  width:34px;height:34px;border-radius:10px;display:grid;place-items:center;
+  color:var(--ink-2);border:1px solid transparent;flex:none;
+}
+.iconbtn:hover{background:var(--surface-2);color:var(--ink)}
+.iconbtn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+main{flex:1;padding:16px 14px 26px;display:flex;flex-direction:column;gap:16px}
+.tabbar{
+  position:sticky;bottom:0;z-index:20;display:grid;grid-template-columns:repeat(4,1fr);
+  background:color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter:blur(12px);
+  border-top:1px solid var(--line);
+  padding:6px 6px calc(6px + env(safe-area-inset-bottom));
+}
+.tabbar button{
+  display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 2px 5px;border-radius:10px;
+  font-size:10.5px;font-weight:600;letter-spacing:.01em;color:var(--ink-3);
+}
+.tabbar button svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tabbar button[aria-selected="true"]{color:var(--accent)}
+.tabbar button:hover{color:var(--ink)}
+
+/* ---------- primitives ---------- */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+.pad{padding:14px}
+.stack{display:flex;flex-direction:column;gap:10px}
+.row{display:flex;align-items:center;gap:10px}
+.spread{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.grow{flex:1;min-width:0}
+.eyebrow{font-family:"DM Mono",monospace;font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3)}
+.muted{color:var(--ink-2)}
+.small{font-size:13px}
+.tiny{font-size:12px}
+.mono{font-family:"DM Mono",monospace;font-variant-numeric:tabular-nums}
+.sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:0 2px}
+.sec-head h2{font-size:15.5px;font-weight:700}
+
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  padding:10px 15px;border-radius:11px;font-weight:600;font-size:14px;
+  background:var(--accent);color:var(--accent-ink);border:1px solid var(--accent);
+  transition:background .15s ease;
+}
+.btn:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line-strong)}
+.btn.ghost:hover{background:var(--surface-2)}
+.btn.quiet{background:var(--surface-2);color:var(--ink);border-color:transparent}
+.btn.quiet:hover{background:var(--surface-3)}
+.btn.danger{background:transparent;color:var(--no);border-color:var(--no-soft)}
+.btn.danger:hover{background:var(--no-soft)}
+.btn.wide{width:100%}
+.btn.sm{padding:7px 11px;font-size:13px;border-radius:9px}
+.btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+
+.pill{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:11.5px;font-weight:600;background:var(--surface-2);color:var(--ink-2);white-space:nowrap}
+.pill.go{background:var(--go-soft);color:var(--go)}
+.pill.maybe{background:var(--maybe-soft);color:var(--maybe)}
+.pill.no{background:var(--no-soft);color:var(--no)}
+.pill.accent{background:var(--accent-soft);color:var(--accent)}
+.pill.dot::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+
+.av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;color:#fff;flex:none;font-family:"Bricolage Grotesque",sans-serif}
+.av.lg{width:40px;height:40px;font-size:15px}
+.av.sm{width:24px;height:24px;font-size:10.5px}
+.avstack{display:flex}
+.avstack .av{margin-left:-8px;box-shadow:0 0 0 2px var(--surface)}
+.avstack .av:first-child{margin-left:0}
+
+label.field{display:flex;flex-direction:column;gap:5px}
+label.field > span{font-family:"DM Mono",monospace;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+input[type=text],input[type=url],input[type=number],input[type=date],input[type=datetime-local],textarea,select{
+  width:100%;padding:10px 12px;border-radius:10px;background:var(--surface);
+  border:1px solid var(--line-strong);
+}
+textarea{resize:vertical;min-height:64px}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+
+.empty{text-align:center;padding:26px 18px;border:1px dashed var(--line-strong);border-radius:var(--r);background:var(--surface-2)}
+.empty h3{font-size:15px;margin-bottom:5px}
+
+.listitem{display:block;width:100%;text-align:left;padding:13px 14px;border-bottom:1px solid var(--line)}
+.listitem:last-child{border-bottom:none}
+.listitem:hover{background:var(--surface-2)}
+.divide > * + *{border-top:1px solid var(--line)}
+
+.bar{height:7px;border-radius:99px;background:var(--surface-3);overflow:hidden}
+.bar > i{display:block;height:100%;border-radius:99px;background:var(--accent)}
+
+.notice{border-radius:var(--r-sm);padding:10px 12px;font-size:12.5px;line-height:1.45;background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line)}
+.notice strong{color:var(--ink);font-weight:600}
+.notice.warn{background:var(--maybe-soft);border-color:transparent;color:var(--maybe)}
+.notice.warn strong{color:var(--maybe)}
+
+/* vote grid */
+.voterow{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line)}
+.voterow:last-child{border-bottom:none}
+.vbtns{display:flex;gap:5px}
+.vbtn{width:36px;height:32px;border-radius:9px;border:1px solid var(--line-strong);display:grid;place-items:center;font-size:12px;font-weight:700;color:var(--ink-3);background:var(--surface)}
+.vbtn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.vbtn:hover{border-color:var(--line-strong);background:var(--surface-2);color:var(--ink)}
+.vbtn[aria-pressed="true"][data-v="yes"]{background:var(--go);border-color:var(--go);color:#fff}
+.vbtn[aria-pressed="true"][data-v="maybe"]{background:var(--maybe);border-color:var(--maybe);color:#fff}
+.vbtn[aria-pressed="true"][data-v="no"]{background:var(--no);border-color:var(--no);color:#fff}
+.tally{display:flex;gap:8px;font-family:"DM Mono",monospace;font-size:11.5px;font-variant-numeric:tabular-nums}
+.tally b{font-weight:500}
+.winner{background:var(--accent-soft);margin:0 -10px;padding-left:10px;padding-right:10px;border-radius:10px;border-bottom-color:transparent}
+
+/* modal */
+.scrim{position:fixed;inset:0;background:rgba(26,18,32,.5);backdrop-filter:blur(2px);z-index:60;display:flex;align-items:flex-end;justify-content:center}
+.sheet{
+  width:100%;max-width:468px;max-height:92svh;overflow-y:auto;
+  background:var(--bg);border:1px solid var(--line);border-bottom:none;
+  border-radius:20px 20px 0 0;padding:16px 16px calc(20px + env(safe-area-inset-bottom));
+  display:flex;flex-direction:column;gap:14px;
+  animation:up .22s cubic-bezier(.2,.8,.3,1);
+}
+@keyframes up{from{transform:translateY(14px);opacity:.6}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.sheet{animation:none}}
+.sheet h2{font-size:19px}
+.grab{width:36px;height:4px;border-radius:99px;background:var(--line-strong);margin:0 auto}
+
+.opt-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
+.toast{
+  position:fixed;left:50%;transform:translateX(-50%);bottom:calc(78px + env(safe-area-inset-bottom));z-index:80;
+  background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:11px;font-size:13.5px;font-weight:600;
+  box-shadow:var(--shadow);max-width:400px;
+}
+.seg{display:flex;background:var(--surface-2);border-radius:11px;padding:3px;gap:3px}
+.seg button{flex:1;padding:7px 8px;border-radius:8px;font-size:13px;font-weight:600;color:var(--ink-2)}
+.seg button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13.5px}
+.kv dt{color:var(--ink-3);font-family:"DM Mono",monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding-top:2px}
+.kv dd{margin:0}
+.code{font-family:"DM Mono",monospace;letter-spacing:.14em;font-size:16px;font-weight:500;color:var(--ink)}
+.hero-mark{width:44px;height:44px;border-radius:13px;background:var(--accent);display:grid;place-items:center;color:var(--accent-ink);font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:21px;flex:none}
+.skel{height:12px;border-radius:99px;background:var(--surface-3)}
+</style>
+
+<div id="app">
+  <div class="topbar"><span class="tb-title">Circles</span></div>
+  <main>
+    <div class="card pad stack"><div class="skel" style="width:60%"></div><div class="skel" style="width:85%"></div></div>
+  </main>
+</div>
+<div id="modal"></div>
+<div id="toast"></div>
+
+<script>
+"use strict";
+/* ============================================================
+   Circles — friend-group coordination prototype
+   Storage: artifact `db` capability when available (shared across
+   viewers), localStorage fallback otherwise (solo/offline).
+   ============================================================ */
+
+/* ---------- tiny utils ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const uid = p => p + "_" + Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-3);
+const nowISO = () => new Date().toISOString();
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+};
+const AVCOLORS = ["#8A2F63","#2F6E8A","#1E7A58","#A3415A","#6B4BA8","#A96C12","#3F7A2E","#8A4B2F"];
+const colorFor = id => AVCOLORS[[...String(id)].reduce((a, c) => a + c.charCodeAt(0), 0) % AVCOLORS.length];
+const initials = n => String(n || "?").trim().split(/\s+/).slice(0,2).map(w => w[0]).join("").toUpperCase();
+const fmtDay = t => new Date(t).toLocaleDateString(undefined, { weekday:"short", month:"short", day:"numeric" });
+const fmtTime = t => new Date(t).toLocaleTimeString(undefined, { hour:"numeric", minute:"2-digit" });
+const fmtFull = t => fmtDay(t) + " · " + fmtTime(t);
+const fmtDate = d => new Date(d + "T12:00:00").toLocaleDateString(undefined, { month:"short", day:"numeric" });
+const relDays = t => Math.round((new Date(t) - Date.now()) / 86400000);
+const num = n => (Math.round(n * 100) / 100).toLocaleString();
+
+function toast(msg) {
+  const t = $("#toast");
+  t.innerHTML = '<div class="toast">' + esc(msg) + "</div>";
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { t.innerHTML = ""; }, 2600);
+}
+
+/* ---------- storage adapters ---------- */
+/* App-level API: get, getCol, set, update, del, watchDoc, watchCol */
+function deepMerge(base, patch) {
+  const out = { ...(base || {}) };
+  for (const [k, v] of Object.entries(patch)) {
+    if (v && typeof v === "object" && !Array.isArray(v)) out[k] = deepMerge(out[k], v);
+    else out[k] = v;
+  }
+  return out;
+}
+function localStore() {
+  const KEY = "circles.db.v1";
+  let data = LS.get(KEY, {});
+  const listeners = new Set();
+  const save = () => { LS.set(KEY, data); listeners.forEach(fn => { try { fn(); } catch (e) {} }); };
+  const childrenOf = path => Object.keys(data)
+    .filter(p => p.startsWith(path + "/") && p.slice(path.length + 1).split("/").length === 1)
+    .map(p => ({ id: p.split("/").pop(), ...data[p] }));
+  window.addEventListener("storage", e => { if (e.key === KEY) { data = LS.get(KEY, {}); listeners.forEach(fn => fn()); } });
+  return {
+    kind: "local",
+    async get(p) { return data[p] ? { id: p.split("/").pop(), ...data[p] } : null; },
+    async getCol(p) { return childrenOf(p); },
+    async set(p, v) { data[p] = v; save(); },
+    async update(p, v) { data[p] = deepMerge(data[p] || {}, v); save(); },
+    async del(p) { delete data[p]; save(); },
+    watchDoc(p, cb) { const fn = () => cb(data[p] ? { id: p.split("/").pop(), ...data[p] } : null); fn(); listeners.add(fn); return () => listeners.delete(fn); },
+    watchCol(p, cb) { const fn = () => cb(childrenOf(p)); fn(); listeners.add(fn); return () => listeners.delete(fn); }
+  };
+}
+function dbStore(db) {
+  const snapToObj = d => ({ id: d.id, ...(d.data() || {}) });
+  return {
+    kind: "db",
+    async get(p) { const s = await db.doc(p).get(); return s.exists ? snapToObj(s) : null; },
+    async getCol(p) { const s = await db.collection(p).get(); return s.docs.map(snapToObj); },
+    async set(p, v) { return db.doc(p).set(v); },
+    async update(p, v) {
+      try { await db.doc(p).update(v); }
+      catch (e) { if (e && e.code === "invalid_argument") await db.doc(p).set(v); else throw e; }
+    },
+    async del(p) { return db.doc(p).delete(); },
+    watchDoc(p, cb) { return db.doc(p).onSnapshot(s => cb(s.exists ? snapToObj(s) : null), e => console.warn("watchDoc", p, e)); },
+    watchCol(p, cb) { return db.collection(p).onSnapshot(s => cb(s.docs.map(snapToObj)), e => console.warn("watchCol", p, e)); }
+  };
+}
+
+/* ---------- state ---------- */
+const S = {
+  store: null,
+  ready: false,
+  me: LS.get("circles.me", null),            // {id, name}
+  memberships: LS.get("circles.memberships", []), // [{gid, name}]
+  gid: null,
+  group: null,
+  members: [],
+  events: [],
+  challenges: [],
+  albums: [],
+  entryCache: {},                            // challengeId -> entries[]
+  view: "home",                              // home | group | event | challenge | members | settings
+  tab: "plans",
+  focusId: null,
+  subs: [],
+  modal: null
+};
+const P = {
+  group: g => "groups/" + g,
+  members: g => "groups/" + g + "/members",
+  member: (g, u) => "groups/" + g + "/members/" + u,
+  events: g => "groups/" + g + "/events",
+  event: (g, e) => "groups/" + g + "/events/" + e,
+  challenges: g => "groups/" + g + "/challenges",
+  challenge: (g, c) => "groups/" + g + "/challenges/" + c,
+  entries: (g, c) => "groups/" + g + "/challenges/" + c + "/entries",
+  entry: (g, c, e) => "groups/" + g + "/challenges/" + c + "/entries/" + e,
+  albums: g => "groups/" + g + "/albums",
+  album: (g, a) => "groups/" + g + "/albums/" + a
+};
+const me = () => S.members.find(m => m.id === (S.me && S.me.id)) || null;
+const isAdmin = () => { const m = me(); return !!m && m.role === "admin" && m.status === "active"; };
+const isActive = () => { const m = me(); return !!m && m.status === "active"; };
+const activeMembers = () => S.members.filter(m => m.status === "active").sort((a, b) => (a.joinedAt || "").localeCompare(b.joinedAt || ""));
+const memberName = id => { const m = S.members.find(x => x.id === id); return m ? m.name : "Someone who left"; };
+
+/* ---------- icons ---------- */
+const I = {
+  back:'<path d="M15 18l-6-6 6-6"/>',
+  gear:'<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h8M16 18h4"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="14" cy="18" r="2"/>',
+  cal:'<rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M8 3v4M16 3v4M3 10h18"/>',
+  money:'<path d="M12 2v20"/><path d="M17 6.5c0-2-2.2-3-5-3s-5 .9-5 3 2 2.7 5 3.3 5 1.3 5 3.4-2.2 3.3-5 3.3-5-1.1-5-3"/>',
+  flag:'<path d="M4 22V4M4 4h13l-2 4 2 4H4"/>',
+  photo:'<rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="M3 17l4.5-4.5a2 2 0 0 1 2.8 0L15 17M14.5 14.5l1.6-1.6a2 2 0 0 1 2.8 0L21 15.5"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  check:'<path d="M20 6L9 17l-5-5"/>',
+  q:'<path d="M12 17h.01"/><path d="M9.1 9a3 3 0 1 1 4.2 2.7c-.8.4-1.3 1.1-1.3 2"/>',
+  x:'<path d="M18 6L6 18M6 6l12 12"/>',
+  users:'<path d="M16 20v-1.5a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V20"/><circle cx="9" cy="7" r="3.5"/><path d="M17.5 4.2a3.5 3.5 0 0 1 0 6.6M22 20v-1.5a4 4 0 0 0-3-3.8"/>',
+  link:'<path d="M10 13a5 5 0 0 0 7.5.5l2-2A5 5 0 0 0 12.5 4l-1 1"/><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2A5 5 0 0 0 11.5 20l1-1"/>',
+  bell:'<path d="M18 8a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7"/><path d="M13.7 20a2 2 0 0 1-3.4 0"/>',
+  pin:'<path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/>',
+  share:'<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/>'
+};
+const svg = (d, cls) => '<svg class="' + (cls || "") + '" viewBox="0 0 24 24" aria-hidden="true">' + d + "</svg>";
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+async function boot() {
+  render(); // paint shell immediately
+  let store = null;
+  try {
+    const db = await window.claude?.use?.("db");
+    if (db) store = dbStore(db);
+  } catch (e) { /* fall through */ }
+  S.store = store || localStore();
+  S.ready = true;
+  const joinCode = readJoinHash();
+  if (joinCode) { history.replaceState(null, "", location.pathname + location.search); openJoinByCode(joinCode); }
+  render();
+}
+function readJoinHash() {
+  const m = /join=([A-Za-z0-9-]{4,20})/.exec(location.hash || "");
+  return m ? m[1].toUpperCase() : null;
+}
+
+/* ---------- subscriptions ---------- */
+function clearSubs() { S.subs.forEach(f => { try { f(); } catch (e) {} }); S.subs = []; }
+function enterGroup(gid) {
+  clearSubs();
+  S.gid = gid; S.group = null; S.members = []; S.events = []; S.challenges = []; S.albums = []; S.entryCache = {};
+  S.view = "group"; S.tab = "plans";
+  const st = S.store;
+  S.subs.push(st.watchDoc(P.group(gid), d => { S.group = d; render(); }));
+  S.subs.push(st.watchCol(P.members(gid), d => { S.members = d; render(); }));
+  S.subs.push(st.watchCol(P.events(gid), d => { S.events = d; render(); }));
+  S.subs.push(st.watchCol(P.challenges(gid), d => { S.challenges = d; render(); refreshEntries(); }));
+  S.subs.push(st.watchCol(P.albums(gid), d => { S.albums = d; render(); }));
+  render();
+}
+function leaveToHome() { clearSubs(); S.gid = null; S.view = "home"; render(); }
+async function refreshEntries() {
+  const gid = S.gid; if (!gid) return;
+  for (const c of S.challenges) {
+    try { S.entryCache[c.id] = await S.store.getCol(P.entries(gid, c.id)); } catch (e) {}
+  }
+  render();
+}
+
+/* ============================================================
+   ACTIONS
+   ============================================================ */
+function ensureMe(name) {
+  if (!S.me) S.me = { id: uid("u"), name: name || "You" };
+  if (name) S.me.name = name;
+  LS.set("circles.me", S.me);
+  return S.me;
+}
+function rememberMembership(gid, name) {
+  const list = S.memberships.filter(m => m.gid !== gid);
+  list.unshift({ gid, name });
+  S.memberships = list; LS.set("circles.memberships", list);
+}
+function forgetMembership(gid) {
+  S.memberships = S.memberships.filter(m => m.gid !== gid);
+  LS.set("circles.memberships", S.memberships);
+}
+function makeCode() {
+  const A = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  return Array.from({ length: 6 }, () => A[Math.floor(Math.random() * A.length)]).join("");
+}
+
+async function createGroup(groupName, myName) {
+  const person = ensureMe(myName);
+  const gid = uid("g"), code = makeCode();
+  await S.store.set(P.group(gid), {
+    name: groupName, createdBy: person.id, createdAt: nowISO(), inviteCode: code,
+    splitwise: { linked: false }
+  });
+  await S.store.set(P.member(gid, person.id), {
+    name: person.name, role: "admin", status: "active", joinedAt: nowISO(), leftAt: null
+  });
+  rememberMembership(gid, groupName);
+  closeModal(); enterGroup(gid); toast("Group created");
+}
+
+async function findGroupByCode(code) {
+  const groups = await S.store.getCol("groups");
+  return groups.find(g => (g.inviteCode || "").toUpperCase() === code.toUpperCase()) || null;
+}
+async function joinGroup(code, myName) {
+  const g = await findGroupByCode(code.trim());
+  if (!g) { toast("No group with that code"); return; }
+  const person = ensureMe(myName);
+  const existing = await S.store.get(P.member(g.id, person.id));
+  // Spec: a returning member gets a NEW membership row, never a reactivated one.
+  if (existing && existing.status === "left") {
+    await S.store.set(P.member(g.id, person.id + "-" + Date.now().toString(36)), {
+      name: person.name, role: "member", status: "active", joinedAt: nowISO(), leftAt: null
+    });
+  } else if (!existing) {
+    await S.store.set(P.member(g.id, person.id), {
+      name: person.name, role: "member", status: "active", joinedAt: nowISO(), leftAt: null
+    });
+  }
+  rememberMembership(g.id, g.name);
+  closeModal(); enterGroup(g.id); toast("Joined " + g.name);
+}
+
+async function createEvent(form) {
+  const gid = S.gid;
+  const options = form.times.filter(Boolean).map(t => ({ id: uid("o"), time: new Date(t).toISOString() }))
+    .sort((a, b) => a.time.localeCompare(b.time));
+  const id = uid("e");
+  await S.store.set(P.event(gid, id), {
+    title: form.title, location: form.location || null, notes: form.notes || null,
+    status: options.length ? "proposed" : "confirmed",
+    confirmedTime: options.length ? null : null,
+    createdBy: S.me.id, createdAt: nowISO(),
+    options, votes: {}, rsvps: {}
+  });
+  closeModal(); S.focusId = id; S.view = "event"; render(); toast("Poll sent to the group");
+}
+async function castVote(eventId, optionId, resp) {
+  const ev = S.events.find(e => e.id === eventId); if (!ev) return;
+  const cur = ((ev.votes || {})[S.me.id] || {})[optionId];
+  await S.store.update(P.event(S.gid, eventId), { votes: { [S.me.id]: { [optionId]: cur === resp ? null : resp } } });
+}
+async function confirmTime(eventId, optionId) {
+  const ev = S.events.find(e => e.id === eventId); if (!ev) return;
+  const opt = (ev.options || []).find(o => o.id === optionId); if (!opt) return;
+  const rsvps = {};
+  for (const [u, votes] of Object.entries(ev.votes || {})) {
+    if (votes && votes[optionId] === "yes") rsvps[u] = "going";
+    else if (votes && votes[optionId] === "maybe") rsvps[u] = "maybe";
+  }
+  await S.store.update(P.event(S.gid, eventId), { status: "confirmed", confirmedTime: opt.time, rsvps });
+  closeModal(); toast("Locked in for " + fmtFull(opt.time));
+}
+async function setRsvp(eventId, resp) {
+  await S.store.update(P.event(S.gid, eventId), { rsvps: { [S.me.id]: resp } });
+}
+async function cancelEvent(eventId) {
+  await S.store.update(P.event(S.gid, eventId), { status: "cancelled" });
+  closeModal(); toast("Event cancelled");
+}
+async function reopenVoting(eventId) {
+  await S.store.update(P.event(S.gid, eventId), { status: "proposed", confirmedTime: null });
+  closeModal(); toast("Voting reopened");
+}
+
+async function addAlbum(url, eventId) {
+  const id = uid("a");
+  await S.store.set(P.album(S.gid, id), {
+    url, eventId: eventId || null, createdBy: S.me.id, createdAt: nowISO(), reminderSentAt: null
+  });
+  closeModal(); toast("Album link saved");
+}
+async function markReminderSent(albumId) {
+  await S.store.update(P.album(S.gid, albumId), { reminderSentAt: nowISO() });
+  toast("Nudge sent to the group");
+}
+
+async function createChallenge(f) {
+  const id = uid("c");
+  await S.store.set(P.challenge(S.gid, id), {
+    title: f.title, type: f.type, unit: f.unit, target: f.target ? Number(f.target) : null,
+    targetMode: f.targetMode, startDate: f.startDate, endDate: f.endDate,
+    createdBy: S.me.id, createdAt: nowISO()
+  });
+  closeModal(); S.focusId = id; S.view = "challenge"; render(); refreshEntries(); toast("Challenge started");
+}
+async function logEntry(cid, amount, note) {
+  const id = uid("x");
+  await S.store.set(P.entry(S.gid, cid, id), {
+    userId: S.me.id, amount: Number(amount), note: note || null, loggedAt: nowISO()
+  });
+  closeModal(); await refreshEntries(); toast("Logged " + num(Number(amount)));
+}
+
+async function renameGroup(name) { await S.store.update(P.group(S.gid), { name }); closeModal(); toast("Group renamed"); }
+async function setRole(memberId, role) { await S.store.update(P.member(S.gid, memberId), { role }); }
+async function removeMember(memberId) {
+  await S.store.update(P.member(S.gid, memberId), { status: "left", leftAt: nowISO() });
+  closeModal(); toast("Member removed");
+}
+async function leaveGroup() {
+  await S.store.update(P.member(S.gid, S.me.id), { status: "left", leftAt: nowISO() });
+  forgetMembership(S.gid); closeModal(); leaveToHome(); toast("You left the group");
+}
+async function setSplitwise(patch) { await S.store.update(P.group(S.gid), { splitwise: patch }); closeModal(); }
+
+/* Sample group — created on an explicit tap, so the prototype has
+   something to demo. Everything it writes is ordinary group data. */
+async function loadSample() {
+  const person = ensureMe(S.me?.name || "You");
+  const gid = uid("g");
+  const now = Date.now(), day = 86400000;
+  const cast = [["Maya", "admin"], ["Dev", "member"], ["Priya", "member"], ["Sam", "member"]];
+  await S.store.set(P.group(gid), { name: "Cabin Crew", createdBy: person.id, createdAt: nowISO(), inviteCode: makeCode(), splitwise: { linked: false } });
+  await S.store.set(P.member(gid, person.id), { name: person.name, role: "admin", status: "active", joinedAt: new Date(now - 30 * day).toISOString(), leftAt: null });
+  const ids = {};
+  for (let i = 0; i < cast.length; i++) {
+    const id = uid("u"); ids[cast[i][0]] = id;
+    await S.store.set(P.member(gid, id), { name: cast[i][0], role: cast[i][1], status: "active", joinedAt: new Date(now - (29 - i) * day).toISOString(), leftAt: null });
+  }
+  const iso = (d, h) => { const x = new Date(now + d * day); x.setHours(h, 0, 0, 0); return x.toISOString(); };
+  const o1 = uid("o"), o2 = uid("o"), o3 = uid("o");
+  await S.store.set(P.event(gid, uid("e")), {
+    title: "Cabin weekend", location: "Mohonk, NY", notes: "Two nights. Dev is driving, four seats.",
+    status: "proposed", confirmedTime: null, createdBy: ids.Maya, createdAt: nowISO(),
+    options: [{ id: o1, time: iso(9, 17) }, { id: o2, time: iso(16, 17) }, { id: o3, time: iso(23, 17) }],
+    votes: {
+      [ids.Maya]: { [o1]: "yes", [o2]: "yes", [o3]: "no" },
+      [ids.Dev]: { [o1]: "no", [o2]: "yes", [o3]: "maybe" },
+      [ids.Priya]: { [o1]: "maybe", [o2]: "yes", [o3]: "yes" },
+      [ids.Sam]: { [o1]: "yes", [o2]: "maybe", [o3]: "no" }
+    },
+    rsvps: {}
+  });
+  const evPast = uid("e");
+  await S.store.set(P.event(gid, evPast), {
+    title: "Priya's birthday dinner", location: "Lucia, Brooklyn", notes: "Reservation under Maya, 7:30.",
+    status: "confirmed", confirmedTime: iso(-3, 19), createdBy: ids.Priya, createdAt: nowISO(),
+    options: [], votes: {},
+    rsvps: { [person.id]: "going", [ids.Maya]: "going", [ids.Dev]: "going", [ids.Priya]: "going", [ids.Sam]: "not_going" }
+  });
+  await S.store.set(P.album(gid, uid("a")), {
+    url: "https://www.icloud.com/sharedalbum/#B0eGZ4example", eventId: evPast,
+    createdBy: ids.Maya, createdAt: nowISO(), reminderSentAt: null
+  });
+  const cid = uid("c");
+  const d = n => new Date(now + n * day).toISOString().slice(0, 10);
+  await S.store.set(P.challenge(gid, cid), {
+    title: "100 miles in October", type: "distance", unit: "miles", target: 100, targetMode: "per_person",
+    startDate: d(-12), endDate: d(18), createdBy: ids.Dev, createdAt: nowISO()
+  });
+  const logs = [[person.id, 6.2, "River loop"], [ids.Dev, 12, "Long run"], [ids.Dev, 5, null], [ids.Maya, 9.5, "Prospect Park"], [ids.Priya, 4, "Treadmill"], [ids.Sam, 7.1, null], [ids.Maya, 3.2, null]];
+  for (const [u, a, n] of logs) await S.store.set(P.entry(gid, cid, uid("x")), { userId: u, amount: a, note: n, loggedAt: nowISO() });
+  rememberMembership(gid, "Cabin Crew");
+  closeModal(); enterGroup(gid); toast("Sample group ready");
+}
+
+/* ============================================================
+   DERIVED
+   ============================================================ */
+function tallyOption(ev, optId) {
+  let yes = 0, maybe = 0, no = 0;
+  for (const votes of Object.values(ev.votes || {})) {
+    const v = votes && votes[optId];
+    if (v === "yes") yes++; else if (v === "maybe") maybe++; else if (v === "no") no++;
+  }
+  return { yes, maybe, no, score: yes * 2 + maybe };
+}
+function bestOption(ev) {
+  const opts = ev.options || []; if (!opts.length) return null;
+  return opts.map(o => ({ o, t: tallyOption(ev, o.id) })).sort((a, b) => b.t.score - a.t.score || a.o.time.localeCompare(b.o.time))[0];
+}
+function eventSort(a, b) {
+  const ta = a.confirmedTime || (a.options && a.options[0] && a.options[0].time) || a.createdAt;
+  const tb = b.confirmedTime || (b.options && b.options[0] && b.options[0].time) || b.createdAt;
+  return String(ta).localeCompare(String(tb));
+}
+function upcomingEvents() {
+  const cutoff = Date.now() - 6 * 3600000;
+  return S.events.filter(e => e.status !== "cancelled" && (!e.confirmedTime || new Date(e.confirmedTime) > cutoff)).sort(eventSort);
+}
+function pastEvents() {
+  const cutoff = Date.now() - 6 * 3600000;
+  return S.events.filter(e => e.status === "cancelled" || (e.confirmedTime && new Date(e.confirmedTime) <= cutoff)).sort(eventSort).reverse();
+}
+function challengeTotals(c) {
+  const entries = S.entryCache[c.id] || [];
+  const per = {};
+  for (const e of entries) per[e.userId] = (per[e.userId] || 0) + Number(e.amount || 0);
+  const rows = Object.entries(per).map(([userId, total]) => ({ userId, total })).sort((a, b) => b.total - a.total);
+  const sum = rows.reduce((a, r) => a + r.total, 0);
+  return { rows, sum, entries };
+}
+function challengeGoal(c) {
+  if (!c.target) return null;
+  return c.targetMode === "group" ? c.target : c.target * Math.max(activeMembers().length, 1);
+}
+function albumsNeedingNudge() {
+  return S.albums.filter(a => {
+    if (a.reminderSentAt || !a.eventId) return false;
+    const ev = S.events.find(e => e.id === a.eventId);
+    return ev && ev.confirmedTime && Date.now() - new Date(ev.confirmedTime) > 24 * 3600000;
+  });
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function render() {
+  const app = $("#app");
+  if (!S.ready) return;
+  let head = "", body = "", tabs = "";
+  if (S.view === "home" || !S.gid) { head = headHome(); body = viewHome(); }
+  else if (!S.group) { head = headGroup("Loading…"); body = '<div class="card pad stack"><div class="skel" style="width:55%"></div><div class="skel" style="width:80%"></div></div>'; }
+  else if (S.view === "group") { head = headGroup(); body = viewGroup(); tabs = tabBar(); }
+  else if (S.view === "event") { head = headSub("Event"); body = viewEvent(); }
+  else if (S.view === "challenge") { head = headSub("Challenge"); body = viewChallenge(); }
+  else if (S.view === "members") { head = headSub("People"); body = viewMembers(); }
+  else if (S.view === "settings") { head = headSub("Group settings"); body = viewSettings(); }
+  app.innerHTML = head + "<main>" + body + "</main>" + tabs;
+  renderModal();
+}
+
+/* ---------- headers ---------- */
+function headHome() {
+  return '<div class="topbar"><div class="hero-mark" style="width:32px;height:32px;font-size:16px;border-radius:10px">C</div>' +
+    '<span class="tb-title">Circles<span class="tb-sub">' + (S.store.kind === "db" ? "shared with your group" : "this device only") + "</span></span></div>";
+}
+function headGroup(title) {
+  const name = title || (S.group ? S.group.name : "");
+  const count = activeMembers().length;
+  return '<div class="topbar">' +
+    '<button class="iconbtn" data-act="home" aria-label="All groups">' + svg(I.back) + "</button>" +
+    '<span class="tb-title">' + esc(name) + '<span class="tb-sub">' + count + " member" + (count === 1 ? "" : "s") + "</span></span>" +
+    '<button class="iconbtn" data-act="people" aria-label="People">' + svg(I.users) + "</button>" +
+    '<button class="iconbtn" data-act="settings" aria-label="Group settings">' + svg(I.gear) + "</button></div>";
+}
+function headSub(label) {
+  return '<div class="topbar"><button class="iconbtn" data-act="backgroup" aria-label="Back">' + svg(I.back) + "</button>" +
+    '<span class="tb-title">' + esc(S.group ? S.group.name : "") + '<span class="tb-sub">' + esc(label) + "</span></span></div>";
+}
+function tabBar() {
+  const t = [["plans", "Plans", I.cal], ["money", "Money", I.money], ["goals", "Challenges", I.flag], ["photos", "Photos", I.photo]];
+  return '<nav class="tabbar" role="tablist">' + t.map(([k, l, ic]) =>
+    '<button role="tab" aria-selected="' + (S.tab === k) + '" data-act="tab" data-tab="' + k + '">' + svg(ic) + "<span>" + l + "</span></button>").join("") + "</nav>";
+}
+
+/* ---------- home ---------- */
+function viewHome() {
+  const mine = S.memberships;
+  let out = "";
+  out += '<div class="card pad stack" style="gap:12px">' +
+    '<div class="row" style="gap:12px"><div class="hero-mark">C</div><div class="grow">' +
+    '<h1 style="font-size:21px;font-weight:800">Your groups</h1>' +
+    '<p class="small muted">Plans, money, photos and challenges — one place per friend group.</p></div></div>' +
+    '<div class="row" style="gap:8px"><button class="btn grow" data-act="newgroup">' + svg(I.plus) + "New group</button>" +
+    '<button class="btn ghost grow" data-act="joingroup">Join with code</button></div></div>';
+
+  if (!mine.length) {
+    out += '<div class="empty stack" style="align-items:center;gap:10px">' +
+      "<h3>No groups yet</h3>" +
+      '<p class="small muted" style="max-width:32ch;margin:0 auto">Start one and share the invite code, or open a filled-in sample group to see how it all works.</p>' +
+      '<button class="btn quiet sm" data-act="sample">Open sample group</button></div>';
+  } else {
+    out += '<div class="card divide">' + mine.map(m =>
+      '<button class="listitem row" data-act="open" data-gid="' + esc(m.gid) + '">' +
+      '<div class="av lg" style="background:' + colorFor(m.gid) + '">' + esc(initials(m.name)) + "</div>" +
+      '<div class="grow"><div style="font-weight:600">' + esc(m.name) + "</div>" +
+      '<div class="tiny muted">Tap to open</div></div>' +
+      '<span class="iconbtn" style="transform:rotate(180deg)">' + svg(I.back) + "</span></button>").join("") + "</div>";
+    out += '<button class="btn quiet sm" style="align-self:center" data-act="sample">Add a sample group</button>';
+  }
+  out += '<div class="notice"><strong>Prototype.</strong> ' +
+    (S.store.kind === "db"
+      ? "Group data is shared — anyone you send this link to sees the same plans and votes."
+      : "Shared storage is not available in this view, so data stays in this browser only.") +
+    " Sign-in, Splitwise OAuth and push notifications are stubbed; see <em>About</em> in group settings.</div>";
+  return out;
+}
+
+/* ---------- group hub ---------- */
+function viewGroup() {
+  if (!isActive()) return viewNotMember();
+  if (S.tab === "plans") return tabPlans();
+  if (S.tab === "money") return tabMoney();
+  if (S.tab === "goals") return tabGoals();
+  return tabPhotos();
+}
+function viewNotMember() {
+  return '<div class="empty stack" style="gap:10px"><h3>You are not in this group</h3>' +
+    '<p class="small muted">Your membership is not active. Ask an admin for a fresh invite code.</p>' +
+    '<button class="btn quiet sm" style="align-self:center" data-act="home">Back to groups</button></div>';
+}
+
+function eventCard(e) {
+  const isProposed = e.status === "proposed";
+  const best = isProposed ? bestOption(e) : null;
+  const myVotes = (e.votes || {})[S.me.id] || {};
+  const votedCount = Object.keys(e.votes || {}).filter(u => Object.values(e.votes[u] || {}).some(Boolean)).length;
+  const iVoted = Object.values(myVotes).some(Boolean);
+  const rsvps = e.rsvps || {};
+  const going = Object.entries(rsvps).filter(([, v]) => v === "going").map(([u]) => u);
+  const myRsvp = rsvps[S.me.id];
+  let meta = "", status = "";
+  if (e.status === "cancelled") {
+    status = '<span class="pill no dot">Cancelled</span>';
+    meta = e.confirmedTime ? fmtFull(e.confirmedTime) : "";
+  } else if (isProposed) {
+    status = iVoted ? '<span class="pill accent dot">Voted</span>' : '<span class="pill maybe dot">Needs your vote</span>';
+    meta = (e.options || []).length + " time options · " + votedCount + " of " + activeMembers().length + " voted";
+  } else {
+    const d = relDays(e.confirmedTime);
+    status = myRsvp === "going" ? '<span class="pill go dot">You are in</span>'
+      : myRsvp === "not_going" ? '<span class="pill no dot">Not going</span>'
+      : myRsvp === "maybe" ? '<span class="pill maybe dot">Maybe</span>'
+      : '<span class="pill dot">RSVP open</span>';
+    meta = fmtFull(e.confirmedTime) + (d >= 0 && d <= 14 ? " · " + (d === 0 ? "today" : d === 1 ? "tomorrow" : "in " + d + " days") : "");
+  }
+  return '<button class="listitem stack" style="gap:7px" data-act="event" data-id="' + esc(e.id) + '">' +
+    '<div class="spread"><span style="font-weight:600;font-size:15.5px">' + esc(e.title) + "</span>" + status + "</div>" +
+    '<div class="tiny muted mono">' + esc(meta) + "</div>" +
+    (e.location ? '<div class="tiny muted row" style="gap:4px">' + svg(I.pin, "pinico") + esc(e.location) + "</div>" : "") +
+    (going.length ? '<div class="avstack" style="margin-top:2px">' + going.slice(0, 6).map(u =>
+      '<div class="av sm" style="background:' + colorFor(u) + '" title="' + esc(memberName(u)) + '">' + esc(initials(memberName(u))) + "</div>").join("") +
+      (going.length > 6 ? '<div class="av sm" style="background:var(--surface-3);color:var(--ink-2)">+' + (going.length - 6) + "</div>" : "") + "</div>" : "") +
+    "</button>";
+}
+function tabPlans() {
+  const up = upcomingEvents(), past = pastEvents();
+  let out = '<div class="sec-head"><h2>Upcoming</h2><button class="btn sm" data-act="newevent">' + svg(I.plus) + "Plan something</button></div>";
+  out += up.length
+    ? '<div class="card divide">' + up.map(eventCard).join("") + "</div>"
+    : '<div class="empty"><h3>Nothing on the calendar</h3><p class="small muted">Propose a few times and let everyone vote.</p></div>';
+  const nudges = albumsNeedingNudge();
+  if (nudges.length) {
+    const a = nudges[0], ev = S.events.find(x => x.id === a.eventId);
+    out += '<div class="card pad stack" style="gap:10px;border-color:var(--accent-line)">' +
+      '<div class="row" style="gap:9px">' + '<span class="pill accent">' + svg(I.bell) + "Reminder due</span></div>" +
+      "<p class=\"small\">“Add your photos from <strong>" + esc(ev.title) + "</strong>” — the shared album has been sitting untouched since " + esc(fmtDay(ev.confirmedTime)) + ".</p>" +
+      '<div class="row" style="gap:8px"><button class="btn sm" data-act="nudge" data-id="' + esc(a.id) + '">Send the nudge</button>' +
+      '<a class="btn ghost sm" href="' + esc(a.url) + '" target="_blank" rel="noopener">Open album</a></div></div>';
+  }
+  if (past.length) {
+    out += '<div class="sec-head" style="margin-top:4px"><h2>Past</h2><span class="eyebrow">' + past.length + "</span></div>";
+    out += '<div class="card divide">' + past.slice(0, 6).map(eventCard).join("") + "</div>";
+  }
+  return out;
+}
+
+function tabMoney() {
+  const sw = (S.group.splitwise || {});
+  let out = '<div class="sec-head"><h2>Splitwise</h2>' + (sw.linked ? '<span class="pill go dot">Linked</span>' : '<span class="pill dot">Not linked</span>') + "</div>";
+  if (!sw.linked) {
+    out += '<div class="card pad stack" style="gap:12px">' +
+      '<p class="small">Circles does not hold money or duplicate expenses. Link the friend group to its existing Splitwise group and balances are read live from Splitwise whenever you open this tab.</p>' +
+      (isAdmin()
+        ? '<button class="btn wide" data-act="linksw">' + svg(I.link) + "Link a Splitwise group</button>"
+        : '<div class="notice">Only an admin can link Splitwise. Ask ' + esc((S.members.find(m => m.role === "admin" && m.status === "active") || {}).name || "an admin") + " to connect it.</div>") +
+      "</div>";
+    out += '<div class="notice"><strong>Prototype limit.</strong> The OAuth handshake with Splitwise is not wired up here. Linking turns on a labelled sample balance sheet so the screen can be reviewed; no real account is touched.</div>';
+    return out;
+  }
+  const demo = sw.demoBalances || {};
+  const rows = activeMembers().map((m, i) => ({ m, net: demo[m.id] != null ? demo[m.id] : [24.5, -12, 8.25, -20.75, 0][i % 5] }));
+  const mine = rows.find(r => r.m.id === S.me.id);
+  out += '<div class="card pad stack" style="gap:14px">' +
+    '<div class="stack" style="gap:3px"><span class="eyebrow">Your position</span>' +
+    '<div style="font-family:\'Bricolage Grotesque\',sans-serif;font-weight:800;font-size:30px;letter-spacing:-.02em;color:' +
+      (mine && mine.net < 0 ? "var(--no)" : "var(--go)") + '">' +
+      (mine ? (mine.net < 0 ? "You owe $" + num(Math.abs(mine.net)) : mine.net > 0 ? "You are owed $" + num(mine.net) : "All settled") : "—") + "</div>" +
+    '<span class="tiny muted mono">Splitwise group “' + esc(sw.groupName || "—") + "” · cached 5 min</span></div>" +
+    '<div class="stack" style="gap:0" >' + rows.map(r =>
+      '<div class="spread" style="padding:8px 0;border-top:1px solid var(--line)">' +
+      '<div class="row" style="gap:8px"><div class="av sm" style="background:' + colorFor(r.m.id) + '">' + esc(initials(r.m.name)) + "</div>" +
+      '<span class="small">' + esc(r.m.name) + (r.m.id === S.me.id ? ' <span class="tiny muted">(you)</span>' : "") + "</span></div>" +
+      '<span class="mono small" style="color:' + (r.net < 0 ? "var(--no)" : r.net > 0 ? "var(--go)" : "var(--ink-3)") + '">' +
+      (r.net === 0 ? "settled" : (r.net > 0 ? "+" : "−") + "$" + num(Math.abs(r.net))) + "</span></div>").join("") + "</div>" +
+    '<a class="btn wide" href="https://secure.splitwise.com" target="_blank" rel="noopener">' + svg(I.plus) + "Add an expense in Splitwise</a>" +
+    (isAdmin() ? '<button class="btn danger sm" data-act="unlinksw">Unlink Splitwise</button>' : "") + "</div>";
+  out += '<div class="notice warn"><strong>Sample figures.</strong> These balances are placeholder data for the prototype, not your real Splitwise account. In the built version this panel is a live read from Splitwise’s API, cached for five minutes.</div>';
+  return out;
+}
+
+function tabGoals() {
+  const live = S.challenges.filter(c => new Date(c.endDate + "T23:59:59") >= new Date()).sort((a, b) => a.endDate.localeCompare(b.endDate));
+  const done = S.challenges.filter(c => new Date(c.endDate + "T23:59:59") < new Date());
+  let out = '<div class="sec-head"><h2>Active challenges</h2><button class="btn sm" data-act="newchallenge">' + svg(I.plus) + "New</button></div>";
+  const card = (c, closed) => {
+    const { rows, sum } = challengeTotals(c);
+    const goal = challengeGoal(c);
+    const pct = goal ? Math.min(100, Math.round((sum / goal) * 100)) : 0;
+    const mineTotal = (rows.find(r => r.userId === S.me.id) || {}).total || 0;
+    const leader = rows[0];
+    return '<button class="listitem stack" style="gap:9px" data-act="challenge" data-id="' + esc(c.id) + '">' +
+      '<div class="spread"><span style="font-weight:600;font-size:15.5px">' + esc(c.title) + "</span>" +
+      (closed ? '<span class="pill dot">Closed</span>' : '<span class="pill accent mono">' + Math.max(0, relDays(c.endDate + "T23:59:59")) + "d left</span>") + "</div>" +
+      (goal ? '<div class="stack" style="gap:5px;width:100%"><div class="bar"><i style="width:' + pct + '%"></i></div>' +
+        '<div class="spread tiny muted mono"><span>' + num(sum) + " / " + num(goal) + " " + esc(c.unit) + "</span><span>" + pct + "%</span></div></div>"
+        : '<div class="tiny muted mono">' + num(sum) + " " + esc(c.unit) + " logged</div>") +
+      '<div class="row tiny muted" style="gap:10px">' +
+      (leader ? "<span>Leading: <strong style=\"color:var(--ink)\">" + esc(memberName(leader.userId)) + "</strong> " + num(leader.total) + " " + esc(c.unit) + "</span>" : "<span>No entries yet</span>") +
+      '<span class="mono">you ' + num(mineTotal) + "</span></div></button>";
+  };
+  out += live.length ? '<div class="card divide">' + live.map(c => card(c, false)).join("") + "</div>"
+    : '<div class="empty"><h3>No challenges running</h3><p class="small muted">Miles, books, gym days, cold plunges — anything you can count.</p></div>';
+  if (done.length) {
+    out += '<div class="sec-head" style="margin-top:4px"><h2>Finished</h2><span class="eyebrow">read-only</span></div>' +
+      '<div class="card divide">' + done.map(c => card(c, true)).join("") + "</div>";
+  }
+  return out;
+}
+
+function tabPhotos() {
+  let out = '<div class="sec-head"><h2>Shared albums</h2><button class="btn sm" data-act="newalbum">' + svg(I.plus) + "Add link</button></div>";
+  const sorted = [...S.albums].sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+  if (!sorted.length) {
+    out += '<div class="empty"><h3>No albums yet</h3><p class="small muted">Create the iCloud Shared Album in Photos, then paste the invite link here so nobody has to dig for it.</p></div>';
+  } else {
+    out += '<div class="card divide">' + sorted.map(a => {
+      const ev = a.eventId ? S.events.find(e => e.id === a.eventId) : null;
+      const due = albumsNeedingNudge().some(x => x.id === a.id);
+      return '<div class="listitem stack" style="gap:8px">' +
+        '<div class="spread"><span style="font-weight:600">' + esc(ev ? ev.title : "Group album") + "</span>" +
+        (a.reminderSentAt ? '<span class="pill go dot">Nudged</span>' : due ? '<span class="pill maybe dot">Nudge due</span>' : "") + "</div>" +
+        '<div class="tiny muted mono" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(a.url) + "</div>" +
+        '<div class="tiny muted">Added by ' + esc(memberName(a.createdBy)) + " · " + esc(fmtDay(a.createdAt)) + "</div>" +
+        '<div class="row" style="gap:8px"><a class="btn ghost sm" href="' + esc(a.url) + '" target="_blank" rel="noopener">Open in Photos</a>' +
+        (due ? '<button class="btn sm" data-act="nudge" data-id="' + esc(a.id) + '">Send nudge</button>' : "") + "</div></div>";
+    }).join("") + "</div>";
+  }
+  out += '<div class="notice"><strong>How this works.</strong> Apple has no public API for Shared Albums, so Circles stores the invite link and sends one reminder a day or two after the event — it never holds your photos.</div>';
+  return out;
+}
+
+/* ---------- event detail ---------- */
+function viewEvent() {
+  const e = S.events.find(x => x.id === S.focusId);
+  if (!e) return '<div class="empty"><h3>Event not found</h3></div>';
+  const mine = (e.votes || {})[S.me.id] || {};
+  const canManage = isAdmin() || e.createdBy === S.me.id;
+  let out = '<div class="card pad stack" style="gap:10px">' +
+    '<div class="spread"><h1 style="font-size:22px;font-weight:800">' + esc(e.title) + "</h1></div>" +
+    '<div class="row" style="gap:7px;flex-wrap:wrap">' +
+      (e.status === "proposed" ? '<span class="pill maybe dot">Voting open</span>'
+        : e.status === "confirmed" ? '<span class="pill go dot">Confirmed</span>' : '<span class="pill no dot">Cancelled</span>') +
+      (e.confirmedTime ? '<span class="pill mono">' + esc(fmtFull(e.confirmedTime)) + "</span>" : "") +
+      (e.location ? '<span class="pill">' + svg(I.pin) + esc(e.location) + "</span>" : "") + "</div>" +
+    (e.notes ? '<p class="small muted">' + esc(e.notes) + "</p>" : "") +
+    '<div class="tiny muted">Proposed by ' + esc(memberName(e.createdBy)) + "</div></div>";
+
+  if (e.status === "proposed") {
+    const best = bestOption(e);
+    out += '<div class="card pad stack" style="gap:4px"><div class="spread"><h2 style="font-size:15.5px">Which time works?</h2>' +
+      '<span class="eyebrow">tap to answer</span></div>' +
+      (e.options || []).map(o => {
+        const t = tallyOption(e, o.id);
+        const isBest = best && best.o.id === o.id && t.yes + t.maybe > 0;
+        return '<div class="voterow' + (isBest ? " winner" : "") + '"><div class="stack" style="gap:3px">' +
+          '<span style="font-weight:600;font-size:14.5px">' + esc(fmtDay(o.time)) + '<span class="muted" style="font-weight:400"> · ' + esc(fmtTime(o.time)) + "</span></span>" +
+          '<div class="tally"><b style="color:var(--go)">' + t.yes + " yes</b><b style=\"color:var(--maybe)\">" + t.maybe + " maybe</b><b style=\"color:var(--ink-3)\">" + t.no + " no</b>" +
+          (isBest ? '<b style="color:var(--accent)">best so far</b>' : "") + "</div></div>" +
+          '<div class="vbtns">' +
+            ["yes", "maybe", "no"].map(v => '<button class="vbtn" data-v="' + v + '" aria-pressed="' + (mine[o.id] === v) + '" aria-label="' + v + '" data-act="vote" data-id="' + esc(e.id) + '" data-opt="' + esc(o.id) + '">' +
+              svg(v === "yes" ? I.check : v === "maybe" ? I.q : I.x) + "</button>").join("") +
+          "</div></div>";
+      }).join("") + "</div>";
+    out += '<div class="card pad stack" style="gap:10px"><div class="spread"><span class="small"><strong>Who has answered</strong></span>' +
+      '<span class="tiny muted mono">' + Object.keys(e.votes || {}).length + " / " + activeMembers().length + "</span></div>" +
+      '<div class="row" style="gap:6px;flex-wrap:wrap">' + activeMembers().map(m => {
+        const answered = e.votes && e.votes[m.id] && Object.values(e.votes[m.id]).some(Boolean);
+        return '<span class="pill' + (answered ? " go" : "") + '" style="' + (answered ? "" : "opacity:.7") + '">' +
+          '<span class="av sm" style="width:17px;height:17px;font-size:9px;background:' + colorFor(m.id) + '">' + esc(initials(m.name)) + "</span>" + esc(m.name) + "</span>";
+      }).join("") + "</div>" +
+      (canManage ? '<button class="btn wide" data-act="pickwinner" data-id="' + esc(e.id) + '">Confirm a time</button>'
+        : '<div class="notice">' + esc(memberName(e.createdBy)) + " picks the final time once enough people have voted.</div>") + "</div>";
+  } else if (e.status === "confirmed") {
+    const rsvps = e.rsvps || {};
+    const mineR = rsvps[S.me.id];
+    const group = k => activeMembers().filter(m => rsvps[m.id] === k);
+    out += '<div class="card pad stack" style="gap:12px"><h2 style="font-size:15.5px">Are you coming?</h2>' +
+      '<div class="seg">' + [["going", "Going"], ["maybe", "Maybe"], ["not_going", "Can’t make it"]].map(([k, l]) =>
+        '<button aria-selected="' + (mineR === k) + '" data-act="rsvp" data-id="' + esc(e.id) + '" data-r="' + k + '">' + l + "</button>").join("") + "</div>" +
+      '<div class="stack" style="gap:9px">' + [["going", "Going", "go"], ["maybe", "Maybe", "maybe"], ["not_going", "Out", "no"]].map(([k, l, cls]) => {
+        const list = group(k); if (!list.length) return "";
+        return '<div class="row" style="gap:8px;align-items:flex-start"><span class="pill ' + cls + '" style="min-width:62px;justify-content:center">' + l + " " + list.length + "</span>" +
+          '<span class="small grow">' + list.map(m => esc(m.name)).join(", ") + "</span></div>";
+      }).join("") +
+      (activeMembers().filter(m => !rsvps[m.id]).length ? '<div class="row" style="gap:8px"><span class="pill" style="min-width:62px;justify-content:center">Silent</span>' +
+        '<span class="small grow muted">' + activeMembers().filter(m => !rsvps[m.id]).map(m => esc(m.name)).join(", ") + "</span></div>" : "") +
+      "</div></div>";
+    const alb = S.albums.filter(a => a.eventId === e.id);
+    out += '<div class="card pad stack" style="gap:10px"><div class="spread"><h2 style="font-size:15.5px">Photos</h2>' +
+      '<button class="btn quiet sm" data-act="newalbum" data-id="' + esc(e.id) + '">Add album link</button></div>' +
+      (alb.length ? alb.map(a => '<a class="small" href="' + esc(a.url) + '" target="_blank" rel="noopener">' + esc(a.url) + "</a>").join("")
+        : '<p class="small muted">No shared album yet. Add the iCloud link and everyone gets one nudge the day after.</p>') + "</div>";
+  }
+  if (canManage) {
+    out += '<div class="row" style="gap:8px">' +
+      (e.status === "confirmed" ? '<button class="btn ghost sm grow" data-act="reopen" data-id="' + esc(e.id) + '">Reopen voting</button>' : "") +
+      (e.status !== "cancelled" ? '<button class="btn danger sm grow" data-act="cancelevent" data-id="' + esc(e.id) + '">Cancel event</button>' : "") + "</div>";
+  }
+  return out;
+}
+
+/* ---------- challenge detail ---------- */
+function viewChallenge() {
+  const c = S.challenges.find(x => x.id === S.focusId);
+  if (!c) return '<div class="empty"><h3>Challenge not found</h3></div>';
+  const { rows, sum, entries } = challengeTotals(c);
+  const goal = challengeGoal(c);
+  const closed = new Date(c.endDate + "T23:59:59") < new Date();
+  const pct = goal ? Math.min(100, Math.round((sum / goal) * 100)) : 0;
+  const max = Math.max(...rows.map(r => r.total), goal ? (c.targetMode === "per_person" ? c.target : goal) : 1, 1);
+  let out = '<div class="card pad stack" style="gap:12px">' +
+    '<div class="spread"><h1 style="font-size:21px;font-weight:800">' + esc(c.title) + "</h1>" +
+    (closed ? '<span class="pill dot">Closed</span>' : '<span class="pill accent mono">' + Math.max(0, relDays(c.endDate + "T23:59:59")) + "d left</span>") + "</div>" +
+    '<div class="tiny muted mono">' + esc(fmtDate(c.startDate)) + " – " + esc(fmtDate(c.endDate)) + " · counting " + esc(c.unit) +
+      (goal ? " · target " + num(c.target) + " " + esc(c.unit) + (c.targetMode === "per_person" ? " each" : " as a group") : "") + "</div>" +
+    (goal ? '<div class="stack" style="gap:6px"><div class="bar"><i style="width:' + pct + '%"></i></div>' +
+      '<div class="spread tiny muted mono"><span>' + num(sum) + " of " + num(goal) + "</span><span>" + pct + "%</span></div></div>"
+      : '<div class="mono" style="font-size:24px;font-weight:500">' + num(sum) + " " + esc(c.unit) + "</div>") +
+    (closed ? "" : '<button class="btn wide" data-act="logentry" data-id="' + esc(c.id) + '">' + svg(I.plus) + "Log " + esc(c.unit) + "</button>") + "</div>";
+
+  out += '<div class="card pad stack" style="gap:10px"><h2 style="font-size:15.5px">Leaderboard</h2>' +
+    (rows.length ? rows.map((r, i) =>
+      '<div class="stack" style="gap:5px"><div class="spread"><div class="row" style="gap:8px">' +
+      '<span class="mono tiny muted" style="width:14px">' + (i + 1) + "</span>" +
+      '<div class="av sm" style="background:' + colorFor(r.userId) + '">' + esc(initials(memberName(r.userId))) + "</div>" +
+      '<span class="small" style="font-weight:' + (r.userId === S.me.id ? "700" : "500") + '">' + esc(memberName(r.userId)) + (r.userId === S.me.id ? " (you)" : "") + "</span></div>" +
+      '<span class="mono small">' + num(r.total) + ' <span class="muted tiny">' + esc(c.unit) + "</span></span></div>" +
+      '<div class="bar" style="height:5px"><i style="width:' + Math.round((r.total / max) * 100) + "%;background:" + (r.userId === S.me.id ? "var(--accent)" : "var(--line-strong)") + '"></i></div></div>').join("")
+      : '<p class="small muted">Nobody has logged anything yet. Be the annoying one who starts.</p>') + "</div>";
+
+  const recent = [...entries].sort((a, b) => String(b.loggedAt).localeCompare(String(a.loggedAt))).slice(0, 12);
+  if (recent.length) {
+    out += '<div class="card"><div class="pad" style="padding-bottom:6px"><h2 style="font-size:15.5px">Recent entries</h2></div>' +
+      '<div class="divide">' + recent.map(e =>
+        '<div class="listitem spread" style="padding-top:10px;padding-bottom:10px"><div class="row" style="gap:8px">' +
+        '<div class="av sm" style="background:' + colorFor(e.userId) + '">' + esc(initials(memberName(e.userId))) + "</div>" +
+        '<div class="stack" style="gap:1px"><span class="small">' + esc(memberName(e.userId)) + "</span>" +
+        (e.note ? '<span class="tiny muted">' + esc(e.note) + "</span>" : "") + "</div></div>" +
+        '<span class="mono small">+' + num(e.amount) + "</span></div>").join("") + "</div></div>";
+  }
+  return out;
+}
+
+/* ---------- members ---------- */
+function viewMembers() {
+  const act = activeMembers(), left = S.members.filter(m => m.status === "left");
+  let out = '<div class="card pad stack" style="gap:10px">' +
+    '<div class="spread"><h2 style="font-size:15.5px">Invite code</h2><span class="pill accent">' + (isAdmin() ? "Admin" : "Member") + "</span></div>" +
+    '<div class="spread card pad" style="background:var(--surface-2);box-shadow:none"><span class="code">' + esc(S.group.inviteCode) + "</span>" +
+    '<button class="btn quiet sm" data-act="copyinvite">' + svg(I.share) + "Copy link</button></div>" +
+    '<p class="tiny muted">Anyone with the link joins as a member. Admins can promote or remove people afterwards.</p></div>';
+  out += '<div class="sec-head"><h2>In the group</h2><span class="eyebrow">' + act.length + "</span></div>";
+  out += '<div class="card divide">' + act.map(m =>
+    '<div class="listitem row" style="gap:10px"><div class="av" style="background:' + colorFor(m.id) + '">' + esc(initials(m.name)) + "</div>" +
+    '<div class="grow"><div style="font-weight:600">' + esc(m.name) + (m.id === S.me.id ? ' <span class="tiny muted">you</span>' : "") + "</div>" +
+    '<div class="tiny muted mono">' + (m.role === "admin" ? "Admin" : "Member") + " · joined " + esc(fmtDay(m.joinedAt)) + "</div></div>" +
+    (isAdmin() && m.id !== S.me.id
+      ? '<button class="btn quiet sm" data-act="managemember" data-id="' + esc(m.id) + '">Manage</button>' : "") + "</div>").join("") + "</div>";
+  if (left.length) {
+    out += '<div class="sec-head" style="margin-top:4px"><h2>Past members</h2><span class="eyebrow">history kept</span></div>' +
+      '<div class="card divide">' + left.map(m =>
+        '<div class="listitem row" style="gap:10px;opacity:.7"><div class="av" style="background:var(--surface-3);color:var(--ink-2)">' + esc(initials(m.name)) + "</div>" +
+        '<div class="grow"><div style="font-weight:600">' + esc(m.name) + "</div>" +
+        '<div class="tiny muted mono">left ' + esc(m.leftAt ? fmtDay(m.leftAt) : "—") + "</div></div></div>").join("") + "</div>";
+    out += '<div class="notice">Membership rows are never deleted, so old votes, expenses and challenge entries keep their names.</div>';
+  }
+  return out;
+}
+
+/* ---------- settings ---------- */
+function viewSettings() {
+  const admin = isAdmin();
+  let out = '<div class="card pad stack" style="gap:12px">' +
+    '<div class="row" style="gap:11px"><div class="av lg" style="background:' + colorFor(S.gid) + '">' + esc(initials(S.group.name)) + "</div>" +
+    '<div class="grow"><div style="font-weight:700;font-size:16px">' + esc(S.group.name) + "</div>" +
+    '<div class="tiny muted mono">created ' + esc(fmtDay(S.group.createdAt)) + "</div></div></div>" +
+    (admin ? '<button class="btn ghost wide" data-act="rename">Rename group</button>' : "") +
+    '<button class="btn ghost wide" data-act="people">' + svg(I.users) + "People and invites</button>" + "</div>";
+
+  out += '<div class="card pad stack" style="gap:10px"><h2 style="font-size:15.5px">Viewing as</h2>' +
+    '<p class="small muted">Prototype shortcut: there is no real sign-in yet, so you can step into any member to check how a screen looks from their side.</p>' +
+    '<div class="row" style="gap:6px;flex-wrap:wrap">' + activeMembers().map(m =>
+      '<button class="pill' + (m.id === S.me.id ? " accent" : "") + '" data-act="viewas" data-id="' + esc(m.id) + '" style="padding:6px 10px">' +
+      '<span class="av sm" style="width:18px;height:18px;font-size:9px;background:' + colorFor(m.id) + '">' + esc(initials(m.name)) + "</span>" + esc(m.name) + "</button>").join("") + "</div></div>";
+
+  out += '<div class="card pad stack" style="gap:9px"><h2 style="font-size:15.5px">What is stubbed</h2>' +
+    '<dl class="kv">' +
+    "<dt>Auth</dt><dd>No email/Apple/Google sign-in — identity is a name stored in this browser.</dd>" +
+    "<dt>Splitwise</dt><dd>No OAuth handshake; linking shows labelled sample balances.</dd>" +
+    "<dt>Photos</dt><dd>Link-and-remind only. Apple publishes no Shared Albums API.</dd>" +
+    "<dt>Push</dt><dd>Reminders surface in-app instead of as notifications.</dd>" +
+    "<dt>Roles</dt><dd>Admin checks run in the page. Production enforces them server-side on every write.</dd>" +
+    "<dt>Partiful</dt><dd>Out of scope — no public API.</dd></dl></div>";
+
+  out += '<button class="btn danger wide" data-act="leavegroup">Leave this group</button>';
+  return out;
+}
+
+/* ============================================================
+   MODALS
+   ============================================================ */
+function openModal(kind, data) { S.modal = { kind, data: data || {} }; renderModal(); }
+function closeModal() { S.modal = null; renderModal(); }
+function renderModal() {
+  const host = $("#modal");
+  if (!S.modal) { host.innerHTML = ""; return; }
+  host.innerHTML = '<div class="scrim" data-act="scrim"><div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>' + modalBody(S.modal) + "</div></div>";
+  const first = host.querySelector("input,textarea,select");
+  if (first) setTimeout(() => first.focus(), 60);
+}
+function nameField(v) {
+  return '<label class="field"><span>Your name</span><input type="text" id="f-me" value="' + esc(v || (S.me && S.me.name) || "") + '" placeholder="How friends know you" maxlength="40"></label>';
+}
+function modalBody(m) {
+  const d = m.data;
+  switch (m.kind) {
+    case "newgroup":
+      return "<h2>Start a group</h2>" +
+        '<label class="field"><span>Group name</span><input type="text" id="f-gname" placeholder="Cabin Crew" maxlength="48"></label>' +
+        nameField() +
+        '<button class="btn wide" data-act="do-newgroup">Create group</button>' +
+        '<p class="tiny muted">You become the admin. Everyone else joins with a six-character code.</p>';
+    case "joingroup":
+      return "<h2>Join a group</h2>" +
+        '<label class="field"><span>Invite code</span><input type="text" id="f-code" placeholder="ABC123" maxlength="8" style="font-family:\'DM Mono\',monospace;letter-spacing:.14em;text-transform:uppercase" value="' + esc(d.code || "") + '"></label>' +
+        nameField() +
+        '<button class="btn wide" data-act="do-joingroup">Join</button>';
+    case "newevent": {
+      const t0 = new Date(Date.now() + 3 * 86400000); t0.setHours(19, 0, 0, 0);
+      const t1 = new Date(Date.now() + 4 * 86400000); t1.setHours(19, 0, 0, 0);
+      const local = dt => new Date(dt.getTime() - dt.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+      return "<h2>Plan something</h2>" +
+        '<label class="field"><span>What is it</span><input type="text" id="f-title" placeholder="Cabin weekend" maxlength="60"></label>' +
+        '<label class="field"><span>Where (optional)</span><input type="text" id="f-loc" placeholder="Mohonk, NY" maxlength="60"></label>' +
+        '<label class="field"><span>Notes (optional)</span><textarea id="f-notes" placeholder="Who is driving, what to bring…"></textarea></label>' +
+        '<div class="stack" style="gap:7px"><span class="eyebrow">Time options — people vote on these</span>' +
+        '<div class="stack" id="opts" style="gap:7px">' +
+          '<div class="opt-row"><input type="datetime-local" class="f-time" value="' + local(t0) + '"><button class="iconbtn" data-act="rmopt">' + svg(I.x) + "</button></div>" +
+          '<div class="opt-row"><input type="datetime-local" class="f-time" value="' + local(t1) + '"><button class="iconbtn" data-act="rmopt">' + svg(I.x) + "</button></div>" +
+        "</div>" +
+        '<button class="btn quiet sm" data-act="addopt">' + svg(I.plus) + "Add another option</button></div>" +
+        '<button class="btn wide" data-act="do-newevent">Send it to the group</button>';
+    }
+    case "pickwinner": {
+      const e = S.events.find(x => x.id === d.id);
+      return "<h2>Confirm a time</h2><p class=\"small muted\">Pick the winner yourself — the tallies are a guide, not a rule. Everyone who said yes or maybe is carried over as an RSVP.</p>" +
+        '<div class="stack" style="gap:8px">' + (e.options || []).map(o => {
+          const t = tallyOption(e, o.id);
+          return '<button class="card pad spread" style="box-shadow:none;text-align:left" data-act="do-confirm" data-id="' + esc(e.id) + '" data-opt="' + esc(o.id) + '">' +
+            '<div class="stack" style="gap:3px"><span style="font-weight:600">' + esc(fmtFull(o.time)) + "</span>" +
+            '<span class="tally"><b style="color:var(--go)">' + t.yes + " yes</b><b style=\"color:var(--maybe)\">" + t.maybe + " maybe</b><b style=\"color:var(--ink-3)\">" + t.no + " no</b></span></div>" +
+            '<span class="pill accent">Pick</span></button>';
+        }).join("") + "</div>";
+    }
+    case "newalbum":
+      return "<h2>Add a shared album</h2>" +
+        '<p class="small muted">Make the album in Photos first, then paste its invite link. Circles stores the link and nudges the group once, a day after the event.</p>' +
+        '<label class="field"><span>iCloud album link</span><input type="url" id="f-url" placeholder="https://www.icloud.com/sharedalbum/…"></label>' +
+        '<label class="field"><span>Attach to an event (optional)</span><select id="f-ev"><option value="">Just the group</option>' +
+          S.events.filter(e => e.status !== "cancelled").sort(eventSort).reverse().map(e =>
+            '<option value="' + esc(e.id) + '"' + (d.id === e.id ? " selected" : "") + ">" + esc(e.title) + "</option>").join("") + "</select></label>" +
+        '<button class="btn wide" data-act="do-newalbum">Save link</button>';
+    case "newchallenge": {
+      const d0 = new Date().toISOString().slice(0, 10);
+      const d1 = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+      return "<h2>New challenge</h2>" +
+        '<label class="field"><span>Title</span><input type="text" id="f-title" placeholder="100 miles in October" maxlength="60"></label>' +
+        '<div class="row" style="gap:10px"><label class="field grow"><span>Type</span><select id="f-type">' +
+          '<option value="distance">Distance</option><option value="count">Count</option><option value="custom">Custom</option></select></label>' +
+        '<label class="field grow"><span>Unit</span><input type="text" id="f-unit" placeholder="miles" maxlength="16"></label></div>' +
+        '<div class="row" style="gap:10px"><label class="field grow"><span>Target (optional)</span><input type="number" id="f-target" placeholder="100" min="0" step="any"></label>' +
+        '<label class="field grow"><span>Applies</span><select id="f-mode"><option value="per_person">Per person</option><option value="group">To the group</option></select></label></div>' +
+        '<div class="row" style="gap:10px"><label class="field grow"><span>Start</span><input type="date" id="f-start" value="' + d0 + '"></label>' +
+        '<label class="field grow"><span>End</span><input type="date" id="f-end" value="' + d1 + '"></label></div>' +
+        '<button class="btn wide" data-act="do-newchallenge">Start challenge</button>';
+    }
+    case "logentry": {
+      const c = S.challenges.find(x => x.id === d.id);
+      return "<h2>Log progress</h2><p class=\"small muted\">" + esc(c.title) + "</p>" +
+        '<label class="field"><span>Amount in ' + esc(c.unit) + '</span><input type="number" id="f-amt" step="any" min="0" placeholder="5"></label>' +
+        '<label class="field"><span>Note (optional)</span><input type="text" id="f-note" placeholder="River loop" maxlength="60"></label>' +
+        '<button class="btn wide" data-act="do-logentry" data-id="' + esc(c.id) + '">Add entry</button>';
+    }
+    case "rename":
+      return "<h2>Rename group</h2>" +
+        '<label class="field"><span>Group name</span><input type="text" id="f-gname" value="' + esc(S.group.name) + '" maxlength="48"></label>' +
+        '<button class="btn wide" data-act="do-rename">Save</button>';
+    case "linksw":
+      return "<h2>Link Splitwise</h2>" +
+        '<p class="small muted">In the built app this opens Splitwise’s OAuth screen and then lists the Splitwise groups you belong to. Here it stores a labelled sample so the balances screen can be reviewed.</p>' +
+        '<label class="field"><span>Splitwise group name</span><input type="text" id="f-sw" placeholder="Cabin Crew" maxlength="48"></label>' +
+        '<button class="btn wide" data-act="do-linksw">Link with sample data</button>' +
+        '<p class="tiny muted">No Splitwise account is contacted and no token is stored.</p>';
+    case "managemember": {
+      const mm = S.members.find(x => x.id === d.id);
+      return "<h2>" + esc(mm.name) + "</h2>" +
+        '<dl class="kv"><dt>Role</dt><dd>' + (mm.role === "admin" ? "Admin" : "Member") + "</dd>" +
+        "<dt>Joined</dt><dd>" + esc(fmtDay(mm.joinedAt)) + "</dd></dl>" +
+        '<button class="btn ghost wide" data-act="do-role" data-id="' + esc(mm.id) + '" data-role="' + (mm.role === "admin" ? "member" : "admin") + '">' +
+          (mm.role === "admin" ? "Demote to member" : "Make admin") + "</button>" +
+        '<button class="btn danger wide" data-act="do-remove" data-id="' + esc(mm.id) + '">Remove from group</button>' +
+        '<p class="tiny muted">Removing keeps their history — past votes, RSVPs and challenge entries stay attributed.</p>';
+    }
+    case "confirmleave":
+      return "<h2>Leave " + esc(S.group.name) + "?</h2>" +
+        '<p class="small muted">Your past votes and entries stay in the group’s history. You would need a fresh invite to come back.</p>' +
+        '<button class="btn danger wide" data-act="do-leave">Leave group</button>' +
+        '<button class="btn quiet wide" data-act="scrim">Stay</button>';
+    case "confirmcancel":
+      return "<h2>Cancel this event?</h2><p class=\"small muted\">It moves to the past list and nobody can RSVP. This cannot be undone from here.</p>" +
+        '<button class="btn danger wide" data-act="do-cancelevent" data-id="' + esc(d.id) + '">Cancel event</button>' +
+        '<button class="btn quiet wide" data-act="scrim">Keep it</button>';
+    default: return "";
+  }
+}
+
+/* ============================================================
+   EVENTS
+   ============================================================ */
+document.addEventListener("click", async ev => {
+  const el = ev.target.closest("[data-act]");
+  if (!el) return;
+  const act = el.dataset.act, id = el.dataset.id;
+  const val = s => { const n = document.getElementById(s); return n ? n.value.trim() : ""; };
+
+  // scrim closes only on the backdrop itself
+  if (act === "scrim") { if (ev.target === el || el.classList.contains("btn")) closeModal(); return; }
+
+  switch (act) {
+    case "home": leaveToHome(); break;
+    case "open": enterGroup(el.dataset.gid); break;
+    case "sample": await loadSample(); break;
+    case "newgroup": openModal("newgroup"); break;
+    case "joingroup": openModal("joingroup"); break;
+    case "do-newgroup": {
+      const g = val("f-gname"), n = val("f-me");
+      if (!g) return toast("Give the group a name");
+      if (!n) return toast("Add your name");
+      await createGroup(g, n); break;
+    }
+    case "do-joingroup": {
+      const c = val("f-code"), n = val("f-me");
+      if (!c) return toast("Enter the invite code");
+      if (!n) return toast("Add your name");
+      await joinGroup(c, n); break;
+    }
+    case "tab": S.tab = el.dataset.tab; render(); break;
+    case "backgroup": S.view = "group"; render(); break;
+    case "people": S.view = "members"; render(); break;
+    case "settings": S.view = "settings"; render(); break;
+    case "event": S.focusId = id; S.view = "event"; render(); break;
+    case "challenge": S.focusId = id; S.view = "challenge"; render(); refreshEntries(); break;
+    case "newevent": openModal("newevent"); break;
+    case "addopt": {
+      const box = document.getElementById("opts");
+      if (box.children.length >= 5) return toast("Five options is plenty");
+      const div = document.createElement("div");
+      div.className = "opt-row";
+      const last = box.querySelector(".f-time:last-of-type");
+      const base = last && last.value ? new Date(last.value) : new Date();
+      base.setDate(base.getDate() + 1);
+      div.innerHTML = '<input type="datetime-local" class="f-time" value="' +
+        new Date(base.getTime() - base.getTimezoneOffset() * 60000).toISOString().slice(0, 16) +
+        '"><button class="iconbtn" data-act="rmopt">' + svg(I.x) + "</button>";
+      box.appendChild(div); break;
+    }
+    case "rmopt": {
+      const box = document.getElementById("opts");
+      if (box.children.length <= 1) return toast("Keep at least one time");
+      el.closest(".opt-row").remove(); break;
+    }
+    case "do-newevent": {
+      const title = val("f-title");
+      if (!title) return toast("What are you planning?");
+      const times = [...document.querySelectorAll(".f-time")].map(i => i.value).filter(Boolean);
+      if (!times.length) return toast("Add at least one time option");
+      await createEvent({ title, location: val("f-loc"), notes: val("f-notes"), times });
+      break;
+    }
+    case "vote": await castVote(id, el.dataset.opt, el.dataset.v); break;
+    case "pickwinner": openModal("pickwinner", { id }); break;
+    case "do-confirm": await confirmTime(id, el.dataset.opt); break;
+    case "rsvp": await setRsvp(id, el.dataset.r); break;
+    case "cancelevent": openModal("confirmcancel", { id }); break;
+    case "do-cancelevent": await cancelEvent(id); break;
+    case "reopen": await reopenVoting(id); break;
+    case "newalbum": openModal("newalbum", { id }); break;
+    case "do-newalbum": {
+      const u = val("f-url");
+      if (!/^https?:\/\//i.test(u)) return toast("Paste the full album link");
+      await addAlbum(u, val("f-ev")); break;
+    }
+    case "nudge": await markReminderSent(id); break;
+    case "newchallenge": openModal("newchallenge"); break;
+    case "do-newchallenge": {
+      const title = val("f-title"), unit = val("f-unit") || "points";
+      if (!title) return toast("Name the challenge");
+      const start = val("f-start"), end = val("f-end");
+      if (!start || !end || end < start) return toast("Check the dates");
+      await createChallenge({ title, unit, type: val("f-type"), target: val("f-target"), targetMode: val("f-mode"), startDate: start, endDate: end });
+      break;
+    }
+    case "logentry": openModal("logentry", { id }); break;
+    case "do-logentry": {
+      const a = val("f-amt");
+      if (!a || isNaN(Number(a)) || Number(a) <= 0) return toast("Enter an amount above zero");
+      await logEntry(id, a, val("f-note")); break;
+    }
+    case "rename": openModal("rename"); break;
+    case "do-rename": { const n = val("f-gname"); if (n) await renameGroup(n); break; }
+    case "linksw": openModal("linksw"); break;
+    case "do-linksw": await setSplitwise({ linked: true, groupName: val("f-sw") || S.group.name, demo: true }); break;
+    case "unlinksw": await setSplitwise({ linked: false, groupName: null, demo: false }); break;
+    case "managemember": openModal("managemember", { id }); break;
+    case "do-role": await setRole(id, el.dataset.role), closeModal(), toast("Role updated"); break;
+    case "do-remove": await removeMember(id); break;
+    case "leavegroup": openModal("confirmleave"); break;
+    case "do-leave": await leaveGroup(); break;
+    case "viewas": {
+      const m = S.members.find(x => x.id === id);
+      if (m) { S.me = { id: m.id, name: m.name }; LS.set("circles.me", S.me); render(); toast("Viewing as " + m.name); }
+      break;
+    }
+    case "copyinvite": {
+      const link = location.origin + location.pathname + "#join=" + S.group.inviteCode;
+      try { await navigator.clipboard.writeText(link); toast("Invite link copied"); }
+      catch (e) { toast("Invite code: " + S.group.inviteCode); }
+      break;
+    }
+  }
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape" && S.modal) closeModal(); });
+function openJoinByCode(code) { openModal("joingroup", { code }); }
+
+boot();
+</script>

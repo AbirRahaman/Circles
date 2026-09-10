@@ -1,0 +1,5 @@
+{
+  "crons": [
+    { "path": "/api/cron/album-reminders", "schedule": "0 17 * * *" }
+  ]
+}
