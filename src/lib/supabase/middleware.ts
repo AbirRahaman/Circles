@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 type CookieToSet = { name: string; value: string; options?: Record<string, unknown> };
 
-const PUBLIC = ["/login", "/auth", "/api"];
+const PUBLIC = ["/login", "/auth", "/api", "/privacy", "/terms"];
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });

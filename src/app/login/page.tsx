@@ -61,10 +61,11 @@ export default function LoginPage() {
           <Button variant="ghost" className="flex-1" onClick={() => oauth("apple")}>Apple</Button>
         </div>
 
-        <Note>
-          Google and Apple sign-in work once those providers are enabled in your Supabase
-          project under <strong>Authentication → Providers</strong>. Email links work out of the box.
-        </Note>
+        <p className="text-[12.5px] text-ink-2 text-center">
+          By signing in you agree to the{" "}
+          <a href="/terms" className="text-accent">terms of service</a> and{" "}
+          <a href="/privacy" className="text-accent">privacy policy</a>.
+        </p>
       </main>
     </div>
   );
