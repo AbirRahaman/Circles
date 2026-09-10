@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireMembership } from "@/lib/auth";
-import { logEntry } from "@/app/actions/challenges";
+import { logEntry, updateEntry, deleteEntry } from "@/app/actions/challenges";
 import { Card, Field, Pill, ProgressBar, Avatar } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
 import { daysUntil, fmtDate, num } from "@/lib/format";
@@ -91,19 +91,57 @@ export default async function ChallengePage({
 
       {(entries ?? []).length > 0 && (
         <Card>
-          <div className="px-3.5 pt-3.5 pb-1.5"><h2 className="font-display font-bold text-[15.5px]">Recent entries</h2></div>
-          {(entries ?? []).slice(0, 12).map((e) => (
-            <div key={e.id} className="flex items-center justify-between px-3.5 py-2.5 border-b border-line last:border-b-0">
-              <span className="flex items-center gap-2">
-                <Avatar id={e.user_id} name={nameOf(e.user_id)} size={24} />
-                <span className="flex flex-col">
-                  <span className="text-[13.5px]">{nameOf(e.user_id)}</span>
-                  {e.note && <span className="text-[12px] text-ink-2">{e.note}</span>}
+          <div className="px-3.5 pt-3.5 pb-1.5">
+            <h2 className="text-[12.5px] font-semibold uppercase tracking-[0.06em] text-ink-2">Entries</h2>
+          </div>
+          {(entries ?? []).map((e) => {
+            const mine = e.user_id === user.id && !closed;
+            const line = (
+              <>
+                <span className="flex items-center gap-2 min-w-0">
+                  <Avatar id={e.user_id} name={nameOf(e.user_id)} size={24} />
+                  <span className="flex flex-col min-w-0">
+                    <span className="text-[13.5px] truncate">{nameOf(e.user_id)}</span>
+                    {e.note && <span className="text-[12px] text-ink-2 truncate">{e.note}</span>}
+                  </span>
                 </span>
-              </span>
-              <span className="font-mono text-[13.5px]">+{num(Number(e.amount))}</span>
-            </div>
-          ))}
+                <span className="font-mono text-[13.5px] shrink-0">+{num(Number(e.amount))}</span>
+              </>
+            );
+
+            if (!mine) {
+              return (
+                <div key={e.id} className="flex items-center justify-between gap-3 px-3.5 py-2.5 border-b border-line last:border-b-0">
+                  {line}
+                </div>
+              );
+            }
+
+            return (
+              <details key={e.id} className="group border-b border-line last:border-b-0">
+                <summary className="flex items-center justify-between gap-3 px-3.5 py-2.5 cursor-pointer list-none hover:bg-surface-2 [&::-webkit-details-marker]:hidden">
+                  {line}
+                  <span className="text-[12px] text-accent shrink-0 group-open:hidden">Edit</span>
+                </summary>
+                <div className="px-3.5 pb-3 pt-1 flex flex-col gap-2 bg-surface-2">
+                  <form action={updateEntry.bind(null, groupId, challengeId, e.id)} className="flex gap-2 items-end">
+                    <span className="w-24 shrink-0">
+                      <Field label={c.unit}>
+                        <input name="amount" type="number" step="any" min="0" required defaultValue={Number(e.amount)} />
+                      </Field>
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <Field label="Note"><input name="note" maxLength={60} defaultValue={e.note ?? ""} /></Field>
+                    </span>
+                    <SubmitButton size="sm" pendingLabel="Saving…">Save</SubmitButton>
+                  </form>
+                  <form action={deleteEntry.bind(null, groupId, challengeId, e.id)}>
+                    <SubmitButton size="sm" variant="danger" pendingLabel="Deleting…">Delete this entry</SubmitButton>
+                  </form>
+                </div>
+              </details>
+            );
+          })}
         </Card>
       )}
     </>

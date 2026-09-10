@@ -10,8 +10,11 @@ export async function createEvent(groupId: string, formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
   if (!title) throw new Error("What are you planning?");
 
+  // Two ways in: a date you already know, or a poll over several options.
+  const when = String(formData.get("when") ?? "").trim();
   const times = formData.getAll("time").map(String).filter(Boolean);
-  if (times.length === 0) throw new Error("Add at least one time option.");
+
+  if (!when && times.length === 0) throw new Error("Pick a date, or add times to vote on.");
   if (times.length > 5) throw new Error("Five options is the maximum.");
 
   const user = await requireUser();
@@ -25,15 +28,21 @@ export async function createEvent(groupId: string, formData: FormData) {
       title,
       location: String(formData.get("location") ?? "").trim() || null,
       notes: String(formData.get("notes") ?? "").trim() || null,
-      status: "proposed",
+      status: when ? "confirmed" : "proposed",
+      confirmed_time: when ? new Date(when).toISOString() : null,
     })
     .select("id")
     .single();
   if (error || !ev) throw new Error(error?.message ?? "Could not create the event.");
 
-  const rows = times.map((t) => ({ event_id: ev.id, proposed_time: new Date(t).toISOString() }));
-  const { error: optErr } = await supabase.from("event_time_options").insert(rows);
-  if (optErr) throw new Error(optErr.message);
+  if (when) {
+    // Whoever sets the date is going, or they wouldn't have set it.
+    await supabase.from("event_rsvps").insert({ event_id: ev.id, user_id: user.id, response: "going" });
+  } else {
+    const rows = times.map((t) => ({ event_id: ev.id, proposed_time: new Date(t).toISOString() }));
+    const { error: optErr } = await supabase.from("event_time_options").insert(rows);
+    if (optErr) throw new Error(optErr.message);
+  }
 
   revalidatePath(`/g/${groupId}`);
   redirect(`/g/${groupId}/events/${ev.id}`);

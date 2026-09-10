@@ -10,7 +10,7 @@ export function Card({ children, className = "" }: { children: React.ReactNode; 
 export function SectionHead({ title, right }: { title: string; right?: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-3 px-0.5">
-      <h2 className="text-[12px] font-semibold uppercase tracking-[0.05em] text-ink-3">{title}</h2>
+      <h2 className="text-[12.5px] font-semibold uppercase tracking-[0.06em] text-ink-2">{title}</h2>
       {right}
     </div>
   );
@@ -117,5 +117,21 @@ export function Field({ label, children }: { label: string; children: React.Reac
       <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-ink-3">{label}</span>
       {children}
     </label>
+  );
+}
+
+/** A form tucked behind its own button. Uses <details> so it needs no
+ *  client JavaScript and keeps working with the keyboard. */
+export function Disclosure({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <details className="group bg-surface border border-line rounded-xl shadow-card overflow-hidden">
+      <summary className="flex items-center justify-between gap-3 px-3.5 py-3 min-h-11 cursor-pointer list-none font-semibold text-[15px] hover:bg-surface-2 [&::-webkit-details-marker]:hidden">
+        {label}
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-ink-3 transition-transform group-open:rotate-45">
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+      </summary>
+      <div className="border-t border-line p-3.5">{children}</div>
+    </details>
   );
 }

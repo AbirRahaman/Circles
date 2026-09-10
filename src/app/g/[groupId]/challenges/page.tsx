@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireMembership } from "@/lib/auth";
 import { createChallenge } from "@/app/actions/challenges";
-import { Card, Empty, Field, Pill, ProgressBar, SectionHead } from "@/components/ui";
+import { Card, Disclosure, Empty, Field, Pill, ProgressBar, SectionHead } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
 import { daysUntil, num } from "@/lib/format";
 
@@ -68,21 +68,19 @@ export default async function ChallengesTab({ params }: { params: Promise<{ grou
 
   return (
     <>
-      <SectionHead title="Active challenges" />
-      {live.length ? <Card>{live.map((c) => row(c, false))}</Card> : (
-        <Empty title="No challenges running">Miles, books, gym days — anything you can count.</Empty>
-      )}
+      <section className="flex flex-col gap-2.5">
+        <SectionHead
+          title="Active"
+          right={<span className="text-[12.5px] text-ink-3 tabular">{live.length}</span>}
+        />
+        {live.length ? <Card>{live.map((c) => row(c, false))}</Card> : (
+          <Empty title="No challenges running">Miles, books, gym days — anything you can count.</Empty>
+        )}
+      </section>
 
-      {closed.length > 0 && (
-        <>
-          <SectionHead title="Finished" right={<span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3">read-only</span>} />
-          <Card>{closed.map((c) => row(c, true))}</Card>
-        </>
-      )}
-
-      <Card className="p-3.5">
+      <Disclosure label="New challenge">
         <form action={createChallenge.bind(null, groupId)} className="flex flex-col gap-3">
-          <Field label="New challenge"><input name="title" required maxLength={60} placeholder="100 miles in October" /></Field>
+          <Field label="Title"><input name="title" required maxLength={60} placeholder="100 miles in October" /></Field>
           <div className="flex gap-2.5">
             <Field label="Type">
               <select name="type" defaultValue="distance">
@@ -108,7 +106,17 @@ export default async function ChallengesTab({ params }: { params: Promise<{ grou
           </div>
           <SubmitButton className="w-full" pendingLabel="Starting…">Start challenge</SubmitButton>
         </form>
-      </Card>
+      </Disclosure>
+
+      {closed.length > 0 && (
+        <section className="flex flex-col gap-2.5">
+          <SectionHead
+            title="Finished"
+            right={<span className="text-[12.5px] text-ink-3">read-only</span>}
+          />
+          <Card>{closed.map((c) => row(c, true))}</Card>
+        </section>
+      )}
     </>
   );
 }

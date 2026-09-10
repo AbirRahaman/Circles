@@ -55,3 +55,32 @@ export async function logEntry(groupId: string, challengeId: string, formData: F
   revalidatePath(`/g/${groupId}/challenges/${challengeId}`);
   revalidatePath(`/g/${groupId}/challenges`);
 }
+
+export async function updateEntry(
+  groupId: string, challengeId: string, entryId: string, formData: FormData
+) {
+  const amount = Number(formData.get("amount"));
+  if (!amount || Number.isNaN(amount) || amount <= 0) throw new Error("Enter an amount above zero.");
+
+  await requireUser();
+  const supabase = await createClient();
+  // RLS keeps this to your own rows — a forged id updates nothing.
+  const { error } = await supabase
+    .from("challenge_entries")
+    .update({ amount, note: String(formData.get("note") ?? "").trim() || null })
+    .eq("id", entryId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/g/${groupId}/challenges/${challengeId}`);
+  revalidatePath(`/g/${groupId}/challenges`);
+}
+
+export async function deleteEntry(groupId: string, challengeId: string, entryId: string) {
+  await requireUser();
+  const supabase = await createClient();
+  const { error } = await supabase.from("challenge_entries").delete().eq("id", entryId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/g/${groupId}/challenges/${challengeId}`);
+  revalidatePath(`/g/${groupId}/challenges`);
+}

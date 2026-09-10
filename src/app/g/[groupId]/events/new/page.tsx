@@ -1,6 +1,6 @@
 import { requireMembership } from "@/lib/auth";
 import { createEvent } from "@/app/actions/events";
-import { Card, Field, Note } from "@/components/ui";
+import { Card, Disclosure, Field, Note } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
 
 function localValue(daysAhead: number, hour: number) {
@@ -16,29 +16,39 @@ export default async function NewEventPage({ params }: { params: Promise<{ group
 
   return (
     <>
-      <h1 className="font-display font-extrabold text-xl px-0.5">Plan something</h1>
+      <h1 className="text-xl font-bold tracking-[-0.02em] px-0.5">Plan something</h1>
+
+      {/* The common case: you know when it is. */}
       <Card className="p-3.5">
         <form action={createEvent.bind(null, groupId)} className="flex flex-col gap-3.5">
           <Field label="What is it"><input name="title" required maxLength={60} placeholder="Cabin weekend" /></Field>
+          <Field label="When"><input name="when" type="datetime-local" required defaultValue={localValue(7, 19)} /></Field>
           <Field label="Where (optional)"><input name="location" maxLength={60} placeholder="Mohonk, NY" /></Field>
           <Field label="Notes (optional)"><textarea name="notes" rows={3} placeholder="Who is driving, what to bring…" /></Field>
-
-          <div className="flex flex-col gap-2">
-            <span className="font-mono text-[10.5px] tracking-[0.09em] uppercase text-ink-3">
-              Time options — people vote on these
-            </span>
-            {[0, 1, 2].map((i) => (
-              <input key={i} type="datetime-local" name="time" defaultValue={i < 2 ? localValue(3 + i, 19) : ""} />
-            ))}
-            <span className="text-[12px] text-ink-2">Leave the last one blank if two options is enough. Up to five.</span>
-          </div>
-
-          <SubmitButton pendingLabel="Sending…" className="w-full">Send it to the group</SubmitButton>
+          <SubmitButton pendingLabel="Adding…" className="w-full">Add to the calendar</SubmitButton>
         </form>
       </Card>
+
+      {/* Still available when the date is the thing in dispute. */}
+      <Disclosure label="Not sure of the date? Put it to a vote">
+        <form action={createEvent.bind(null, groupId)} className="flex flex-col gap-3.5">
+          <Field label="What is it"><input name="title" required maxLength={60} placeholder="Cabin weekend" /></Field>
+          <Field label="Where (optional)"><input name="location" maxLength={60} placeholder="Mohonk, NY" /></Field>
+          <Field label="Notes (optional)"><textarea name="notes" rows={2} placeholder="Who is driving, what to bring…" /></Field>
+          <div className="flex flex-col gap-2">
+            <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-ink-3">Times to choose between</span>
+            {[0, 1, 2].map((i) => (
+              <input key={i} type="datetime-local" name="time" defaultValue={i < 2 ? localValue(7 + i * 7, 19) : ""} />
+            ))}
+            <span className="text-[12px] text-ink-2">Leave the last blank if two is enough. Up to five.</span>
+          </div>
+          <SubmitButton pendingLabel="Sending…" className="w-full">Send the poll</SubmitButton>
+        </form>
+      </Disclosure>
+
       <Note>
-        Nothing auto-resolves. Once people have voted, you or an admin pick the winning
-        time by hand and the event flips to RSVPs.
+        A poll never resolves itself. Once people have answered, you or an admin pick the
+        winning time by hand and the event flips to RSVPs.
       </Note>
     </>
   );
