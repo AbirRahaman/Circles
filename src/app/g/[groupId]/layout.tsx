@@ -17,7 +17,7 @@ export default async function GroupLayout({
     .eq("status", "active");
 
   return (
-    <div className="shell">
+    <div className="shell shell--app">
       <TopBar
         title={group?.name ?? "Group"}
         sub={`${count ?? 0} member${count === 1 ? "" : "s"}`}

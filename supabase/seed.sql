@@ -13,7 +13,7 @@
 -- a second group rather than updating the first.
 
 create or replace function public.dev_fake_user(p_email text, p_name text)
-returns uuid language plpgsql security definer set search_path = public as $$
+returns uuid language plpgsql security definer set search_path = public, extensions as $$
 declare uid uuid;
 begin
   select id into uid from auth.users where email = p_email;
@@ -38,7 +38,7 @@ begin
 end $$;
 
 create or replace function public.dev_seed(p_email text)
-returns uuid language plpgsql security definer set search_path = public as $$
+returns uuid language plpgsql security definer set search_path = public, extensions as $$
 declare
   me uuid; g uuid;
   maya uuid; devon uuid; priya uuid; sam uuid;

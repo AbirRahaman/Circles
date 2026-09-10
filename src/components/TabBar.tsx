@@ -10,6 +10,8 @@ const icons: Record<string, React.ReactNode> = {
   photos: <><rect x="3" y="4" width="18" height="16" rx="2.5" /><circle cx="9" cy="10" r="1.6" /><path d="M3 17l4.5-4.5a2 2 0 0 1 2.8 0L15 17" /></>,
 };
 
+/** Bottom tabs on a phone, a persistent left rail on a laptop.
+ *  Same markup — globals.css switches it at 900px. */
 export function TabBar({ groupId }: { groupId: string }) {
   const path = usePathname();
   const base = `/g/${groupId}`;
@@ -21,16 +23,14 @@ export function TabBar({ groupId }: { groupId: string }) {
   ];
 
   return (
-    <nav className="sticky bottom-0 z-20 grid grid-cols-4 gap-1 p-1.5 border-t border-line bg-bg/95 backdrop-blur">
+    <nav className="appnav">
+      <span className="appnav__brand">Circles</span>
       {tabs.map((t) => {
-        const active = t.href === base ? path === base || path.startsWith(`${base}/events`) : path.startsWith(t.href);
+        const active = t.href === base
+          ? path === base || path.startsWith(`${base}/events`)
+          : path.startsWith(t.href);
         return (
-          <Link
-            key={t.key}
-            href={t.href}
-            aria-current={active ? "page" : undefined}
-            className={`flex flex-col items-center gap-1 py-1.5 rounded-lg text-[10.5px] font-semibold ${active ? "text-accent" : "text-ink-3 hover:text-ink"}`}
-          >
+          <Link key={t.key} href={t.href} aria-current={active ? "page" : undefined} className="appnav__item">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               {icons[t.key]}
             </svg>

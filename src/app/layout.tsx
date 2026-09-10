@@ -1,10 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { Bricolage_Grotesque, Figtree, DM_Mono } from "next/font/google";
+import { Public_Sans } from "next/font/google";
 import "./globals.css";
 
-const display = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-display", weight: ["500", "700", "800"] });
-const body = Figtree({ subsets: ["latin"], variable: "--font-body" });
-const mono = DM_Mono({ subsets: ["latin"], variable: "--font-mono", weight: ["400", "500"] });
+/* One family everywhere. A system stack would resolve to SF on a Mac and
+   Segoe UI on Windows, so the same app would look like two different apps
+   depending on who opened it. */
+const sans = Public_Sans({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
   title: "Circles",
@@ -13,8 +14,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#F4F1F7" },
-    { media: "(prefers-color-scheme: dark)", color: "#1A151F" },
+    { media: "(prefers-color-scheme: light)", color: "#F4F4F7" },
+    { media: "(prefers-color-scheme: dark)", color: "#131317" },
   ],
   width: "device-width",
   initialScale: 1,
@@ -22,7 +23,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${display.variable} ${body.variable} ${mono.variable}`}>
+    <html lang="en" className={sans.variable}>
       <body className="font-sans text-[15px] leading-normal">{children}</body>
     </html>
   );

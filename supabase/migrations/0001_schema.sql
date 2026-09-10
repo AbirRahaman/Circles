@@ -75,7 +75,7 @@ create index memberships_by_group on public.memberships (group_id);
 create table public.invites (
   id          uuid primary key default gen_random_uuid(),
   group_id    uuid not null references public.friend_groups (id) on delete cascade,
-  token       text not null unique default encode(gen_random_bytes(12), 'hex'),
+  token       text not null unique default replace(gen_random_uuid()::text, '-', ''),
   created_by  uuid not null references public.profiles (id),
   created_at  timestamptz not null default now(),
   expires_at  timestamptz,

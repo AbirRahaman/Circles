@@ -2,48 +2,167 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Direction D · quiet, list-driven, web first ─────────────────────
+   Borders carry structure, not shadows. One accent. Everything else
+   is a considered neutral with a slight cool cast. */
+
 :root {
-  --bg: #F4F1F7; --ground: #EAE4EE;
-  --surface: #FFFFFF; --surface-2: #F3EFF6; --surface-3: #EDE7F1;
-  --line: #E2DAE8; --line-strong: #CFC3D8;
-  --ink: #241C2B; --ink-2: #6B6172; --ink-3: #8F849A;
-  --accent: #8A2F63; --accent-ink: #FFFFFF; --accent-soft: #F8E7F1;
-  --go: #1E7A58; --go-soft: #E1F2EA;
-  --maybe: #A96C12; --maybe-soft: #F8EEDC;
-  --no: #A3415A; --no-soft: #F8E5E9;
+  --bg: #F4F4F7;
+  --surface: #FFFFFF;
+  --surface-2: #F7F8FA;
+  --surface-3: #ECECF0;
+  --line: #E3E3E8;
+  --line-strong: #D5D5DC;
+  --ink: #15151A;
+  --ink-2: #6C6C75;
+  --ink-3: #A0A0A8;
+  --accent: #35507A;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #EAEFF7;
+  --go: #2E7D4F; --go-soft: #E7F3EC;
+  --maybe: #B4843C; --maybe-soft: #F7EFE2;
+  --no: #B4483C; --no-soft: #F8E9E7;
+  --shadow: 0 1px 2px rgba(20, 20, 26, 0.04);
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #1A151F; --ground: #120E16;
-    --surface: #221C29; --surface-2: #2A2331; --surface-3: #332A3B;
-    --line: #372E41; --line-strong: #4A3E56;
-    --ink: #F3EDF6; --ink-2: #AFA2B9; --ink-3: #8B7E96;
-    --accent: #EE84B6; --accent-ink: #2B0C1D; --accent-soft: #3B2130;
-    --go: #5CC79A; --go-soft: #1D3830;
-    --maybe: #E0A751; --maybe-soft: #3A2F1C;
-    --no: #EC8298; --no-soft: #3B2129;
+    --bg: #131317;
+    --surface: #1B1B20;
+    --surface-2: #232329;
+    --surface-3: #2C2C33;
+    --line: #2A2A31;
+    --line-strong: #3A3A43;
+    --ink: #F2F2F5;
+    --ink-2: #A6A6B0;
+    --ink-3: #7C7C86;
+    --accent: #8FB0E0;
+    --accent-ink: #10192A;
+    --accent-soft: #1E2A3D;
+    --go: #5FBE86; --go-soft: #16291F;
+    --maybe: #D8A75E; --maybe-soft: #2E2517;
+    --no: #E0806F; --no-soft: #2E1C19;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
     color-scheme: dark;
   }
 }
 
-html, body { background: var(--ground); color: var(--ink); }
+html, body { background: var(--bg); color: var(--ink); }
 body { -webkit-font-smoothing: antialiased; }
 
-/* The app is one phone-width column on every screen size. */
+/* ── the app frame ───────────────────────────────────────────────────
+   Phone: one column, tabs pinned to the bottom.
+   Laptop: the tab bar becomes a persistent left rail. Tabs at the
+   bottom of a browser window are just wasted screen. */
+
 .shell {
-  max-width: 468px; margin: 0 auto; min-height: 100svh;
+  max-width: 468px;
+  margin: 0 auto;
+  min-height: 100svh;
   background: var(--bg);
-  border-left: 1px solid var(--line); border-right: 1px solid var(--line);
-  display: flex; flex-direction: column;
+  border-left: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
 }
 
+@media (min-width: 900px) {
+  .shell--app {
+    max-width: 1180px;
+    display: grid;
+    grid-template-columns: 232px minmax(0, 1fr);
+    grid-template-areas: "nav head" "nav main";
+    grid-template-rows: auto 1fr;
+  }
+  .shell--app > header { grid-area: head; }
+  .shell--app > main   { grid-area: main; max-width: 760px; padding: 22px 28px 40px; }
+  .shell--app > .appnav { grid-area: nav; }
+}
+
+/* ── navigation ──────────────────────────────────────────────────── */
+
+.appnav {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+}
+
+.appnav__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 7px 2px;
+  border-radius: 8px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--ink-3);
+  text-decoration: none;
+}
+.appnav__item:hover { color: var(--ink); background: var(--surface-2); }
+.appnav__item[aria-current="page"] { color: var(--accent); background: var(--accent-soft); }
+
+@media (min-width: 900px) {
+  .appnav {
+    position: sticky;
+    top: 0;
+    bottom: auto;
+    align-self: start;
+    height: 100svh;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 18px 12px;
+    border-top: none;
+    border-right: 1px solid var(--line);
+  }
+  .appnav__item {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 9px 11px;
+    font-size: 14.5px;
+    font-weight: 500;
+  }
+  .appnav__item[aria-current="page"] { font-weight: 600; }
+  .appnav__brand {
+    display: block;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    padding: 0 11px 16px;
+    color: var(--ink);
+  }
+}
+.appnav__brand { display: none; }
+
+/* ── form controls ───────────────────────────────────────────────── */
+
 input, textarea, select {
-  width: 100%; padding: 10px 12px; border-radius: 10px;
-  background: var(--surface); border: 1px solid var(--line-strong); color: var(--ink);
+  width: 100%;
+  padding: 9px 11px;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  color: var(--ink);
+  font-size: 15px;
 }
 input:focus, textarea:focus, select:focus {
-  outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* Pages still use `font-mono` where digits line up in columns. There is no
+   mono face any more — keep the alignment, drop the typewriter. */
+.font-mono { font-variant-numeric: tabular-nums; letter-spacing: 0; }
