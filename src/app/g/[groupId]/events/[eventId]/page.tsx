@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { requireMembership } from "@/lib/auth";
 import { confirmTime, cancelEvent, reopenVoting, updateEvent } from "@/app/actions/events";
 import { addAlbumLink } from "@/app/actions/albums";
-import { offerRide, updateRide, cancelRide, joinRide, leaveRide } from "@/app/actions/rides";
+import { addCar, updateCar, removeCar, addPassenger, takeSeat, removePassenger } from "@/app/actions/rides";
 import { Card, Pill, Avatar, Note, Field, Disclosure, SectionHead } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
 import { VoteButtons } from "@/components/VoteButtons";
@@ -12,7 +12,8 @@ import type { Profile, RsvpResponse, VoteResponse } from "@/lib/types";
 
 type Car = {
   id: string;
-  driver_id: string;
+  driver_id: string | null;
+  label: string | null;
   seats: number;
   leaving_from: string | null;
   leaves_at: string | null;
@@ -81,8 +82,9 @@ export default async function EventPage({
   const cars = (carRows ?? []) as Car[];
 
   const seatOf = (c: Car) => (c.car_passengers ?? []).map((p) => p.user_id);
-  const inACar = new Set(cars.flatMap((c) => [c.driver_id, ...seatOf(c)]));
-  const myCar = cars.find((c) => c.driver_id === user.id || seatOf(c).includes(user.id));
+  const inACar = new Set(cars.flatMap((c) => [c.driver_id, ...seatOf(c)]).filter(Boolean) as string[]);
+  const drivers = new Set(cars.map((c) => c.driver_id).filter(Boolean) as string[]);
+  const freeDrivers = members.filter((m) => !drivers.has(m.id));
   const going = rsvps.filter((r) => r.response === "going").map((r) => r.user_id);
   const strays = going.filter((id) => !inACar.has(id));
 
@@ -221,19 +223,21 @@ export default async function EventPage({
                 {cars.map((c) => {
                   const pax = seatOf(c);
                   const free = c.seats - pax.length;
-                  const iAmDriver = c.driver_id === user.id;
                   const iAmAboard = pax.includes(user.id);
+                  const canSeat = members.filter((m) => !pax.includes(m.id) && !drivers.has(m.id));
                   return (
                     <div key={c.id} className="px-3.5 py-3 border-b border-line last:border-b-0 flex flex-col gap-2.5">
                       <div className="flex items-start justify-between gap-3">
                         <span className="flex items-center gap-2 min-w-0">
-                          <Avatar id={c.driver_id} name={nameOf(c.driver_id)} size={30} />
+                          {c.driver_id
+                            ? <Avatar id={c.driver_id} name={nameOf(c.driver_id)} size={30} />
+                            : <span className="w-[30px] h-[30px] rounded-full border border-dashed border-line-strong shrink-0" />}
                           <span className="flex flex-col min-w-0">
                             <span className="font-semibold text-[14.5px] truncate">
-                              {nameOf(c.driver_id)} driving
+                              {c.driver_id ? `${nameOf(c.driver_id)} driving` : "No driver yet"}
                             </span>
-                            <span className="text-[12.5px] text-ink-2">
-                              {c.leaving_from ? `from ${c.leaving_from}` : "pickup point TBC"}
+                            <span className="text-[12.5px] text-ink-2 truncate">
+                              {[c.label, c.leaving_from && `from ${c.leaving_from}`].filter(Boolean).join(" · ") || "pickup point TBC"}
                             </span>
                           </span>
                         </span>
@@ -250,53 +254,63 @@ export default async function EventPage({
                       )}
                       {c.note && <p className="text-[12.5px] text-ink-2">{c.note}</p>}
 
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {pax.length ? pax.map((p) => (
-                          <span key={p} className="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1 text-[12px]">
-                            <Avatar id={p} name={nameOf(p)} size={17} />
-                            {nameOf(p)}
-                            {(iAmDriver || p === user.id) && (
-                              <form action={leaveRide.bind(null, groupId, eventId, c.id, p)}>
-                                <button type="submit" aria-label={`Remove ${nameOf(p)}`} className="text-ink-3 hover:text-no">×</button>
-                              </form>
-                            )}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {pax.length ? pax.map((pid) => (
+                          <span key={pid} className="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1 text-[12px]">
+                            <Avatar id={pid} name={nameOf(pid)} size={17} />
+                            {nameOf(pid)}
+                            <form action={removePassenger.bind(null, groupId, eventId, c.id, pid)}>
+                              <button type="submit" aria-label={`Remove ${nameOf(pid)}`} className="text-ink-3 hover:text-no leading-none">×</button>
+                            </form>
                           </span>
                         )) : <span className="text-[12.5px] text-ink-3">No passengers yet</span>}
                       </div>
 
-                      <div className="flex gap-2 flex-wrap">
-                        {!iAmDriver && !iAmAboard && free > 0 && (
-                          <form action={joinRide.bind(null, groupId, eventId, c.id)}>
-                            <SubmitButton size="sm" pendingLabel="Claiming…">Take a seat</SubmitButton>
+                      {free > 0 && canSeat.length > 0 && (
+                        <form action={addPassenger.bind(null, groupId, eventId, c.id)} className="flex gap-2 items-center">
+                          <select name="user_id" defaultValue="" className="flex-1 min-w-0 text-[13.5px] py-1.5">
+                            <option value="" disabled>Add someone…</option>
+                            {canSeat.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                          </select>
+                          <SubmitButton size="sm" variant="quiet" pendingLabel="Adding…">Add</SubmitButton>
+                        </form>
+                      )}
+
+                      <div className="flex gap-2 flex-wrap items-center">
+                        {!iAmAboard && c.driver_id !== user.id && free > 0 && (
+                          <form action={takeSeat.bind(null, groupId, eventId, c.id)}>
+                            <SubmitButton size="sm" pendingLabel="Claiming…">I&rsquo;ll ride here</SubmitButton>
                           </form>
                         )}
-                        {iAmAboard && (
-                          <form action={leaveRide.bind(null, groupId, eventId, c.id, user.id)}>
-                            <SubmitButton size="sm" variant="ghost" pendingLabel="Leaving…">Give up my seat</SubmitButton>
-                          </form>
-                        )}
-                        {iAmDriver && (
-                          <details className="w-full">
-                            <summary className="text-[12.5px] text-accent cursor-pointer list-none [&::-webkit-details-marker]:hidden">Edit this car</summary>
-                            <div className="pt-2.5 flex flex-col gap-2.5">
-                              <form action={updateRide.bind(null, groupId, eventId, c.id)} className="flex flex-col gap-2.5">
-                                <div className="flex gap-2.5">
-                                  <span className="w-20 shrink-0"><Field label="Seats"><input name="seats" type="number" min="1" max="12" required defaultValue={c.seats} /></Field></span>
-                                  <span className="flex-1 min-w-0"><Field label="From"><input name="leaving_from" maxLength={40} defaultValue={c.leaving_from ?? ""} /></Field></span>
-                                </div>
-                                <div className="flex gap-2.5">
-                                  <span className="flex-1 min-w-0"><Field label="Leaves"><input name="leaves_at" type="datetime-local" defaultValue={toInput(c.leaves_at)} /></Field></span>
-                                  <span className="flex-1 min-w-0"><Field label="ETA"><input name="eta" type="datetime-local" defaultValue={toInput(c.eta)} /></Field></span>
-                                </div>
-                                <Field label="Note"><input name="note" maxLength={80} defaultValue={c.note ?? ""} /></Field>
-                                <SubmitButton size="sm" pendingLabel="Saving…">Save car</SubmitButton>
-                              </form>
-                              <form action={cancelRide.bind(null, groupId, eventId, c.id)}>
-                                <SubmitButton size="sm" variant="danger" pendingLabel="Removing…">I&rsquo;m not driving after all</SubmitButton>
-                              </form>
-                            </div>
-                          </details>
-                        )}
+                        <details className="w-full">
+                          <summary className="text-[12.5px] text-accent cursor-pointer list-none [&::-webkit-details-marker]:hidden">Edit this car</summary>
+                          <div className="pt-2.5 flex flex-col gap-2.5">
+                            <form action={updateCar.bind(null, groupId, eventId, c.id)} className="flex flex-col gap-2.5">
+                  <div className="flex gap-2.5">
+                    <span className="flex-1 min-w-0">
+                      <Field label="Driver">
+                        <select name="driver_id" defaultValue={c.driver_id ?? ""}>
+                          <option value="">Not decided yet</option>
+                          {members.filter((m) => !drivers.has(m.id) || m.id === c.driver_id).map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                        </select>
+                      </Field>
+                    </span>
+                    <span className="w-20 shrink-0"><Field label="Seats"><input name="seats" type="number" min="1" max="12" required defaultValue={c.seats} /></Field></span>
+                  </div>
+                  <Field label="Car name (optional)"><input name="label" maxLength={40} placeholder="The van" defaultValue={c.label ?? ""} /></Field>
+                  <Field label="Leaving from"><input name="leaving_from" maxLength={40} placeholder="Bed-Stuy" defaultValue={c.leaving_from ?? ""} /></Field>
+                  <div className="flex gap-2.5">
+                    <span className="flex-1 min-w-0"><Field label="Leaves"><input name="leaves_at" type="datetime-local" defaultValue={toInput(c.leaves_at)} /></Field></span>
+                    <span className="flex-1 min-w-0"><Field label="ETA"><input name="eta" type="datetime-local" defaultValue={toInput(c.eta)} /></Field></span>
+                  </div>
+                  <Field label="Note (optional)"><input name="note" maxLength={80} placeholder="Room for one bag each" defaultValue={c.note ?? ""} /></Field>
+                              <SubmitButton size="sm" pendingLabel="Saving…">Save car</SubmitButton>
+                            </form>
+                            <form action={removeCar.bind(null, groupId, eventId, c.id)}>
+                              <SubmitButton size="sm" variant="danger" pendingLabel="Removing…">Remove this car</SubmitButton>
+                            </form>
+                          </div>
+                        </details>
                       </div>
                     </div>
                   );
@@ -310,22 +324,29 @@ export default async function EventPage({
               </Note>
             )}
 
-            {!myCar && (
-              <Disclosure label="Offer a ride">
-                <form action={offerRide.bind(null, groupId, eventId)} className="flex flex-col gap-3">
+            <Disclosure label="Add a car">
+              <form action={addCar.bind(null, groupId, eventId)} className="flex flex-col gap-3">
                   <div className="flex gap-2.5">
-                    <span className="w-24 shrink-0"><Field label="Spare seats"><input name="seats" type="number" min="1" max="12" required defaultValue={3} /></Field></span>
-                    <span className="flex-1 min-w-0"><Field label="Leaving from"><input name="leaving_from" maxLength={40} placeholder="Bed-Stuy" /></Field></span>
+                    <span className="flex-1 min-w-0">
+                      <Field label="Driver">
+                        <select name="driver_id" defaultValue={""}>
+                          <option value="">Not decided yet</option>
+                          {freeDrivers.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                        </select>
+                      </Field>
+                    </span>
+                    <span className="w-20 shrink-0"><Field label="Seats"><input name="seats" type="number" min="1" max="12" required defaultValue={3} /></Field></span>
                   </div>
+                  <Field label="Car name (optional)"><input name="label" maxLength={40} placeholder="The van" /></Field>
+                  <Field label="Leaving from"><input name="leaving_from" maxLength={40} placeholder="Bed-Stuy" /></Field>
                   <div className="flex gap-2.5">
-                    <span className="flex-1 min-w-0"><Field label="Leaves at"><input name="leaves_at" type="datetime-local" /></Field></span>
-                    <span className="flex-1 min-w-0"><Field label="ETA"><input name="eta" type="datetime-local" /></Field></span>
+                    <span className="flex-1 min-w-0"><Field label="Leaves"><input name="leaves_at" type="datetime-local" defaultValue={""} /></Field></span>
+                    <span className="flex-1 min-w-0"><Field label="ETA"><input name="eta" type="datetime-local" defaultValue={""} /></Field></span>
                   </div>
                   <Field label="Note (optional)"><input name="note" maxLength={80} placeholder="Room for one bag each" /></Field>
-                  <SubmitButton className="w-full" pendingLabel="Offering…">Offer the car</SubmitButton>
-                </form>
-              </Disclosure>
-            )}
+                <SubmitButton className="w-full" pendingLabel="Adding…">Add the car</SubmitButton>
+              </form>
+            </Disclosure>
           </section>
 
           <Card className="p-3.5 flex flex-col gap-3">
