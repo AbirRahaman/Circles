@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth";
 import type { RsvpResponse, VoteResponse } from "@/lib/types";
+import { fromInput } from "@/lib/format";
 
 export async function createEvent(groupId: string, formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
@@ -29,7 +30,7 @@ export async function createEvent(groupId: string, formData: FormData) {
       location: String(formData.get("location") ?? "").trim() || null,
       notes: String(formData.get("notes") ?? "").trim() || null,
       status: when ? "confirmed" : "proposed",
-      confirmed_time: when ? new Date(when).toISOString() : null,
+      confirmed_time: when ? fromInput(when) : null,
     })
     .select("id")
     .single();
@@ -39,7 +40,7 @@ export async function createEvent(groupId: string, formData: FormData) {
     // Whoever sets the date is going, or they wouldn't have set it.
     await supabase.from("event_rsvps").insert({ event_id: ev.id, user_id: user.id, response: "going" });
   } else {
-    const rows = times.map((t) => ({ event_id: ev.id, proposed_time: new Date(t).toISOString() }));
+    const rows = times.map((t) => ({ event_id: ev.id, proposed_time: fromInput(t) }));
     const { error: optErr } = await supabase.from("event_time_options").insert(rows);
     if (optErr) throw new Error(optErr.message);
   }
@@ -107,4 +108,29 @@ export async function reopenVoting(groupId: string, eventId: string) {
     .eq("id", eventId);
   if (error) throw new Error(error.message);
   revalidatePath(`/g/${groupId}/events/${eventId}`);
+}
+
+/** Any active member can correct an event's details — spec 3, events are
+ *  not admin-gated. Changing the date of a confirmed event keeps the RSVPs;
+ *  people are told what changed rather than being reset. */
+export async function updateEvent(groupId: string, eventId: string, formData: FormData) {
+  const title = String(formData.get("title") ?? "").trim();
+  if (!title) throw new Error("An event needs a title.");
+
+  await requireUser();
+  const supabase = await createClient();
+
+  const when = String(formData.get("when") ?? "").trim();
+  const patch: Record<string, unknown> = {
+    title,
+    location: String(formData.get("location") ?? "").trim() || null,
+    notes: String(formData.get("notes") ?? "").trim() || null,
+  };
+  if (when) patch.confirmed_time = fromInput(when);
+
+  const { error } = await supabase.from("events").update(patch).eq("id", eventId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/g/${groupId}/events/${eventId}`);
+  revalidatePath(`/g/${groupId}`);
 }

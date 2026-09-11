@@ -1,13 +1,25 @@
 import { notFound } from "next/navigation";
 import { requireMembership } from "@/lib/auth";
-import { confirmTime, cancelEvent, reopenVoting } from "@/app/actions/events";
+import { confirmTime, cancelEvent, reopenVoting, updateEvent } from "@/app/actions/events";
 import { addAlbumLink } from "@/app/actions/albums";
-import { Card, Pill, Avatar, Note, Field } from "@/components/ui";
+import { offerRide, updateRide, cancelRide, joinRide, leaveRide } from "@/app/actions/rides";
+import { Card, Pill, Avatar, Note, Field, Disclosure, SectionHead } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
 import { VoteButtons } from "@/components/VoteButtons";
 import { RsvpControl } from "@/components/RsvpControl";
-import { fmtDay, fmtTime, fmtFull } from "@/lib/format";
+import { fmtDay, fmtTime, fmtFull, toInput } from "@/lib/format";
 import type { Profile, RsvpResponse, VoteResponse } from "@/lib/types";
+
+type Car = {
+  id: string;
+  driver_id: string;
+  seats: number;
+  leaving_from: string | null;
+  leaves_at: string | null;
+  eta: string | null;
+  note: string | null;
+  car_passengers: { user_id: string }[] | null;
+};
 
 export default async function EventPage({
   params,
@@ -62,10 +74,22 @@ export default async function EventPage({
 
   const { data: albums } = await supabase.from("album_links").select("*").eq("event_id", eventId);
 
+  const { data: carRows } = await supabase
+    .from("event_cars")
+    .select("*, car_passengers(user_id)")
+    .eq("event_id", eventId);
+  const cars = (carRows ?? []) as Car[];
+
+  const seatOf = (c: Car) => (c.car_passengers ?? []).map((p) => p.user_id);
+  const inACar = new Set(cars.flatMap((c) => [c.driver_id, ...seatOf(c)]));
+  const myCar = cars.find((c) => c.driver_id === user.id || seatOf(c).includes(user.id));
+  const going = rsvps.filter((r) => r.response === "going").map((r) => r.user_id);
+  const strays = going.filter((id) => !inACar.has(id));
+
   return (
     <>
       <Card className="p-3.5 flex flex-col gap-2.5">
-        <h1 className="font-display font-extrabold text-[22px]">{event.title}</h1>
+        <h1 className="text-[22px] font-bold tracking-[-0.02em] leading-tight">{event.title}</h1>
         <div className="flex flex-wrap gap-1.5">
           {event.status === "proposed" && <Pill tone="maybe" dot>Voting open</Pill>}
           {event.status === "confirmed" && <Pill tone="go" dot>Confirmed</Pill>}
@@ -74,15 +98,34 @@ export default async function EventPage({
           {event.location && <Pill>{event.location}</Pill>}
         </div>
         {event.notes && <p className="text-[13.5px] text-ink-2">{event.notes}</p>}
-        <p className="text-[12px] text-ink-2">Proposed by {nameOf(event.created_by)}</p>
+        <p className="text-[12.5px] text-ink-2">Proposed by {nameOf(event.created_by)}</p>
       </Card>
+
+      {event.status !== "cancelled" && (
+        <Disclosure label="Edit details">
+          <form action={updateEvent.bind(null, groupId, eventId)} className="flex flex-col gap-3">
+            <Field label="What is it"><input name="title" required maxLength={60} defaultValue={event.title} /></Field>
+            <Field label="Where"><input name="location" maxLength={60} defaultValue={event.location ?? ""} /></Field>
+            <Field label="Notes"><textarea name="notes" rows={3} defaultValue={event.notes ?? ""} /></Field>
+            {event.status === "confirmed" && (
+              <Field label="When"><input name="when" type="datetime-local" defaultValue={toInput(event.confirmed_time)} /></Field>
+            )}
+            <SubmitButton className="w-full" pendingLabel="Saving…">Save changes</SubmitButton>
+            {event.status === "confirmed" && (
+              <p className="text-[12px] text-ink-2">
+                Moving it keeps everyone&rsquo;s RSVPs — tell the group yourself if the time changed.
+              </p>
+            )}
+          </form>
+        </Disclosure>
+      )}
 
       {event.status === "proposed" && (
         <>
           <Card className="p-3.5">
             <div className="flex items-baseline justify-between mb-1">
-              <h2 className="font-display font-bold text-[15.5px]">Which time works?</h2>
-              <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3">tap to answer</span>
+              <h2 className="text-[12.5px] font-semibold uppercase tracking-[0.06em] text-ink-2">Which time works?</h2>
+              <span className="text-[12px] text-ink-3">tap to answer</span>
             </div>
             {options.map((o) => {
               const t = tally(o.id);
@@ -114,7 +157,7 @@ export default async function EventPage({
             </div>
             <div className="flex flex-wrap gap-1.5">
               {members.map((m) => (
-                <span key={m.id} className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[11.5px] font-semibold ${answered.has(m.id) ? "bg-go-soft text-go" : "bg-surface-2 text-ink-2"}`}>
+                <span key={m.id} className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[12px] font-semibold ${answered.has(m.id) ? "bg-go-soft text-go" : "bg-surface-2 text-ink-2"}`}>
                   <Avatar id={m.id} name={m.name} size={17} />
                   {m.name}
                 </span>
@@ -122,7 +165,7 @@ export default async function EventPage({
             </div>
             {canManage ? (
               <div className="flex flex-col gap-2">
-                <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3">Confirm a time</span>
+                <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-ink-3">Confirm a time</span>
                 {options.map((o) => (
                   <form key={o.id} action={confirmTime.bind(null, groupId, eventId, o.id)}>
                     <SubmitButton variant="ghost" className="w-full" pendingLabel="Locking in…">
@@ -130,9 +173,7 @@ export default async function EventPage({
                     </SubmitButton>
                   </form>
                 ))}
-                <p className="text-[12px] text-ink-2">
-                  Everyone who said yes or maybe to that slot is carried over as an RSVP.
-                </p>
+                <p className="text-[12px] text-ink-2">Everyone who said yes or maybe to that slot is carried over as an RSVP.</p>
               </div>
             ) : (
               <Note>{nameOf(event.created_by)} picks the final time once enough people have voted.</Note>
@@ -144,7 +185,7 @@ export default async function EventPage({
       {event.status === "confirmed" && (
         <>
           <Card className="p-3.5 flex flex-col gap-3">
-            <h2 className="font-display font-bold text-[15.5px]">Are you coming?</h2>
+            <h2 className="text-[12.5px] font-semibold uppercase tracking-[0.06em] text-ink-2">Are you coming?</h2>
             <RsvpControl groupId={groupId} eventId={eventId} mine={myRsvp} />
             <div className="flex flex-col gap-2">
               {([["going", "Going", "go"], ["maybe", "Maybe", "maybe"], ["not_going", "Out", "no"]] as const).map(([key, label, tone]) => {
@@ -168,8 +209,127 @@ export default async function EventPage({
             </div>
           </Card>
 
+          {/* ── Getting there ─────────────────────────────────────────── */}
+          <section className="flex flex-col gap-2.5">
+            <SectionHead
+              title="Getting there"
+              right={<span className="text-[12.5px] text-ink-3">{cars.length} car{cars.length === 1 ? "" : "s"}</span>}
+            />
+
+            {cars.length > 0 && (
+              <Card>
+                {cars.map((c) => {
+                  const pax = seatOf(c);
+                  const free = c.seats - pax.length;
+                  const iAmDriver = c.driver_id === user.id;
+                  const iAmAboard = pax.includes(user.id);
+                  return (
+                    <div key={c.id} className="px-3.5 py-3 border-b border-line last:border-b-0 flex flex-col gap-2.5">
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="flex items-center gap-2 min-w-0">
+                          <Avatar id={c.driver_id} name={nameOf(c.driver_id)} size={30} />
+                          <span className="flex flex-col min-w-0">
+                            <span className="font-semibold text-[14.5px] truncate">
+                              {nameOf(c.driver_id)} driving
+                            </span>
+                            <span className="text-[12.5px] text-ink-2">
+                              {c.leaving_from ? `from ${c.leaving_from}` : "pickup point TBC"}
+                            </span>
+                          </span>
+                        </span>
+                        {free > 0
+                          ? <Pill tone="go">{free} seat{free === 1 ? "" : "s"} free</Pill>
+                          : <Pill tone="no">Full</Pill>}
+                      </div>
+
+                      {(c.leaves_at || c.eta) && (
+                        <div className="flex gap-4 font-mono text-[12.5px] text-ink-2">
+                          {c.leaves_at && <span>leaves {fmtTime(c.leaves_at)}</span>}
+                          {c.eta && <span className="text-ink">ETA {fmtTime(c.eta)}</span>}
+                        </div>
+                      )}
+                      {c.note && <p className="text-[12.5px] text-ink-2">{c.note}</p>}
+
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {pax.length ? pax.map((p) => (
+                          <span key={p} className="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1 text-[12px]">
+                            <Avatar id={p} name={nameOf(p)} size={17} />
+                            {nameOf(p)}
+                            {(iAmDriver || p === user.id) && (
+                              <form action={leaveRide.bind(null, groupId, eventId, c.id, p)}>
+                                <button type="submit" aria-label={`Remove ${nameOf(p)}`} className="text-ink-3 hover:text-no">×</button>
+                              </form>
+                            )}
+                          </span>
+                        )) : <span className="text-[12.5px] text-ink-3">No passengers yet</span>}
+                      </div>
+
+                      <div className="flex gap-2 flex-wrap">
+                        {!iAmDriver && !iAmAboard && free > 0 && (
+                          <form action={joinRide.bind(null, groupId, eventId, c.id)}>
+                            <SubmitButton size="sm" pendingLabel="Claiming…">Take a seat</SubmitButton>
+                          </form>
+                        )}
+                        {iAmAboard && (
+                          <form action={leaveRide.bind(null, groupId, eventId, c.id, user.id)}>
+                            <SubmitButton size="sm" variant="ghost" pendingLabel="Leaving…">Give up my seat</SubmitButton>
+                          </form>
+                        )}
+                        {iAmDriver && (
+                          <details className="w-full">
+                            <summary className="text-[12.5px] text-accent cursor-pointer list-none [&::-webkit-details-marker]:hidden">Edit this car</summary>
+                            <div className="pt-2.5 flex flex-col gap-2.5">
+                              <form action={updateRide.bind(null, groupId, eventId, c.id)} className="flex flex-col gap-2.5">
+                                <div className="flex gap-2.5">
+                                  <span className="w-20 shrink-0"><Field label="Seats"><input name="seats" type="number" min="1" max="12" required defaultValue={c.seats} /></Field></span>
+                                  <span className="flex-1 min-w-0"><Field label="From"><input name="leaving_from" maxLength={40} defaultValue={c.leaving_from ?? ""} /></Field></span>
+                                </div>
+                                <div className="flex gap-2.5">
+                                  <span className="flex-1 min-w-0"><Field label="Leaves"><input name="leaves_at" type="datetime-local" defaultValue={toInput(c.leaves_at)} /></Field></span>
+                                  <span className="flex-1 min-w-0"><Field label="ETA"><input name="eta" type="datetime-local" defaultValue={toInput(c.eta)} /></Field></span>
+                                </div>
+                                <Field label="Note"><input name="note" maxLength={80} defaultValue={c.note ?? ""} /></Field>
+                                <SubmitButton size="sm" pendingLabel="Saving…">Save car</SubmitButton>
+                              </form>
+                              <form action={cancelRide.bind(null, groupId, eventId, c.id)}>
+                                <SubmitButton size="sm" variant="danger" pendingLabel="Removing…">I&rsquo;m not driving after all</SubmitButton>
+                              </form>
+                            </div>
+                          </details>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </Card>
+            )}
+
+            {strays.length > 0 && (
+              <Note>
+                <strong>No ride yet:</strong> {strays.map((id) => nameOf(id)).join(", ")}
+              </Note>
+            )}
+
+            {!myCar && (
+              <Disclosure label="Offer a ride">
+                <form action={offerRide.bind(null, groupId, eventId)} className="flex flex-col gap-3">
+                  <div className="flex gap-2.5">
+                    <span className="w-24 shrink-0"><Field label="Spare seats"><input name="seats" type="number" min="1" max="12" required defaultValue={3} /></Field></span>
+                    <span className="flex-1 min-w-0"><Field label="Leaving from"><input name="leaving_from" maxLength={40} placeholder="Bed-Stuy" /></Field></span>
+                  </div>
+                  <div className="flex gap-2.5">
+                    <span className="flex-1 min-w-0"><Field label="Leaves at"><input name="leaves_at" type="datetime-local" /></Field></span>
+                    <span className="flex-1 min-w-0"><Field label="ETA"><input name="eta" type="datetime-local" /></Field></span>
+                  </div>
+                  <Field label="Note (optional)"><input name="note" maxLength={80} placeholder="Room for one bag each" /></Field>
+                  <SubmitButton className="w-full" pendingLabel="Offering…">Offer the car</SubmitButton>
+                </form>
+              </Disclosure>
+            )}
+          </section>
+
           <Card className="p-3.5 flex flex-col gap-3">
-            <h2 className="font-display font-bold text-[15.5px]">Photos</h2>
+            <h2 className="text-[12.5px] font-semibold uppercase tracking-[0.06em] text-ink-2">Photos</h2>
             {(albums ?? []).map((a) => (
               <a key={a.id} href={a.icloud_share_url} target="_blank" rel="noopener" className="text-[13px] break-all text-accent">
                 {a.icloud_share_url}
@@ -182,9 +342,6 @@ export default async function EventPage({
               </Field>
               <SubmitButton size="sm" variant="quiet" pendingLabel="Saving…">Save album link</SubmitButton>
             </form>
-            <p className="text-[12px] text-ink-2">
-              One reminder goes out a day after the event. Circles stores the link, never the photos.
-            </p>
           </Card>
         </>
       )}

@@ -2,13 +2,7 @@ import { requireMembership } from "@/lib/auth";
 import { createEvent } from "@/app/actions/events";
 import { Card, Disclosure, Field, Note } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
-
-function localValue(daysAhead: number, hour: number) {
-  const d = new Date();
-  d.setDate(d.getDate() + daysAhead);
-  d.setHours(hour, 0, 0, 0);
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
-}
+import { inputFor } from "@/lib/format";
 
 export default async function NewEventPage({ params }: { params: Promise<{ groupId: string }> }) {
   const { groupId } = await params;
@@ -22,7 +16,7 @@ export default async function NewEventPage({ params }: { params: Promise<{ group
       <Card className="p-3.5">
         <form action={createEvent.bind(null, groupId)} className="flex flex-col gap-3.5">
           <Field label="What is it"><input name="title" required maxLength={60} placeholder="Cabin weekend" /></Field>
-          <Field label="When"><input name="when" type="datetime-local" required defaultValue={localValue(7, 19)} /></Field>
+          <Field label="When"><input name="when" type="datetime-local" required defaultValue={inputFor(7, 19)} /></Field>
           <Field label="Where (optional)"><input name="location" maxLength={60} placeholder="Mohonk, NY" /></Field>
           <Field label="Notes (optional)"><textarea name="notes" rows={3} placeholder="Who is driving, what to bring…" /></Field>
           <SubmitButton pendingLabel="Adding…" className="w-full">Add to the calendar</SubmitButton>
@@ -38,7 +32,7 @@ export default async function NewEventPage({ params }: { params: Promise<{ group
           <div className="flex flex-col gap-2">
             <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-ink-3">Times to choose between</span>
             {[0, 1, 2].map((i) => (
-              <input key={i} type="datetime-local" name="time" defaultValue={i < 2 ? localValue(7 + i * 7, 19) : ""} />
+              <input key={i} type="datetime-local" name="time" defaultValue={i < 2 ? inputFor(7 + i * 7, 19) : ""} />
             ))}
             <span className="text-[12px] text-ink-2">Leave the last blank if two is enough. Up to five.</span>
           </div>
