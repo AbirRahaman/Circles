@@ -7,7 +7,7 @@ import { Card, Pill, Avatar, Note, Field, Disclosure, SectionHead } from "@/comp
 import { SubmitButton } from "@/components/SubmitButton";
 import { VoteButtons } from "@/components/VoteButtons";
 import { RsvpControl } from "@/components/RsvpControl";
-import { fmtDay, fmtTime, fmtFull, toInput } from "@/lib/format";
+import { fmtDay, fmtTime, fmtFull, toInput, plusMinutes, fmtDuration } from "@/lib/format";
 import type { Profile, RsvpResponse, VoteResponse } from "@/lib/types";
 
 type Car = {
@@ -18,6 +18,7 @@ type Car = {
   leaving_from: string | null;
   leaves_at: string | null;
   eta: string | null;
+  drive_minutes: number | null;
   note: string | null;
   car_passengers: { user_id: string }[] | null;
 };
@@ -246,12 +247,32 @@ export default async function EventPage({
                           : <Pill tone="no">Full</Pill>}
                       </div>
 
-                      {(c.leaves_at || c.eta) && (
-                        <div className="flex gap-4 font-mono text-[12.5px] text-ink-2">
-                          {c.leaves_at && <span>leaves {fmtTime(c.leaves_at)}</span>}
-                          {c.eta && <span className="text-ink">ETA {fmtTime(c.eta)}</span>}
-                        </div>
-                      )}
+                      {(() => {
+                        const derived = !c.eta && c.leaves_at && c.drive_minutes
+                          ? plusMinutes(c.leaves_at, c.drive_minutes) : null;
+                        const arrival = c.eta ?? derived;
+                        const leaveNow = !arrival && c.drive_minutes
+                          ? plusMinutes(new Date().toISOString(), c.drive_minutes) : null;
+                        if (!c.leaves_at && !arrival && !leaveNow) return null;
+                        return (
+                          <div className="flex flex-col gap-1">
+                            <div className="flex gap-4 flex-wrap font-mono text-[12.5px] text-ink-2">
+                              {c.leaves_at && <span>leaves {fmtTime(c.leaves_at)}</span>}
+                              {c.drive_minutes && <span>{fmtDuration(c.drive_minutes)} drive</span>}
+                              {arrival && (
+                                <span className="text-ink">
+                                  ETA {fmtTime(arrival)}{derived ? " (est.)" : ""}
+                                </span>
+                              )}
+                            </div>
+                            {leaveNow && (
+                              <span className="text-[12.5px] text-accent">
+                                Leave now and you&rsquo;d get there around {fmtTime(leaveNow)}.
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
                       {c.note && <p className="text-[12.5px] text-ink-2">{c.note}</p>}
 
                       <div className="flex items-center gap-1.5 flex-wrap">
@@ -301,8 +322,11 @@ export default async function EventPage({
                   <Field label="Leaving from"><input name="leaving_from" maxLength={40} placeholder="Bed-Stuy" defaultValue={c.leaving_from ?? ""} /></Field>
                   <div className="flex gap-2.5">
                     <span className="flex-1 min-w-0"><Field label="Leaves"><input name="leaves_at" type="datetime-local" defaultValue={toInput(c.leaves_at)} /></Field></span>
-                    <span className="flex-1 min-w-0"><Field label="ETA"><input name="eta" type="datetime-local" defaultValue={toInput(c.eta)} /></Field></span>
+                    <span className="flex-1 min-w-0"><Field label="ETA (optional)"><input name="eta" type="datetime-local" defaultValue={toInput(c.eta)} /></Field></span>
                   </div>
+                  <Field label="Drive time in minutes">
+                    <input name="drive_minutes" type="number" min="1" max="2880" placeholder="45" defaultValue={c.drive_minutes ?? ""} />
+                  </Field>
                   <Field label="Note (optional)"><input name="note" maxLength={80} placeholder="Room for one bag each" defaultValue={c.note ?? ""} /></Field>
                               <SubmitButton size="sm" pendingLabel="Saving…">Save car</SubmitButton>
                             </form>
@@ -341,8 +365,11 @@ export default async function EventPage({
                   <Field label="Leaving from"><input name="leaving_from" maxLength={40} placeholder="Bed-Stuy" /></Field>
                   <div className="flex gap-2.5">
                     <span className="flex-1 min-w-0"><Field label="Leaves"><input name="leaves_at" type="datetime-local" defaultValue={""} /></Field></span>
-                    <span className="flex-1 min-w-0"><Field label="ETA"><input name="eta" type="datetime-local" defaultValue={""} /></Field></span>
+                    <span className="flex-1 min-w-0"><Field label="ETA (optional)"><input name="eta" type="datetime-local" defaultValue={""} /></Field></span>
                   </div>
+                  <Field label="Drive time in minutes">
+                    <input name="drive_minutes" type="number" min="1" max="2880" placeholder="45" />
+                  </Field>
                   <Field label="Note (optional)"><input name="note" maxLength={80} placeholder="Room for one bag each" /></Field>
                 <SubmitButton className="w-full" pendingLabel="Adding…">Add the car</SubmitButton>
               </form>

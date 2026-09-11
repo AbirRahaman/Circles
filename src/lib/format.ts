@@ -88,3 +88,15 @@ export function inputFor(daysAhead: number, hour: number): string {
   const day = toInput(base.toISOString()).slice(0, 10);
   return `${day}T${String(hour).padStart(2, "0")}:00`;
 }
+
+/** Shift an instant forward, for arrival times derived from a drive time. */
+export const plusMinutes = (iso: string, mins: number) =>
+  new Date(new Date(iso).getTime() + mins * 60_000).toISOString();
+
+/** 45 -> "45 min", 150 -> "2h 30m". */
+export function fmtDuration(mins: number) {
+  if (mins < 60) return `${mins} min`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m ? `${h}h ${m}m` : `${h}h`;
+}

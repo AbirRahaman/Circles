@@ -10,8 +10,15 @@ function carFields(formData: FormData) {
   const seats = Number(formData.get("seats"));
   if (!seats || seats < 1 || seats > 12) throw new Error("Seats must be between 1 and 12.");
 
+  const driveRaw = String(formData.get("drive_minutes") ?? "").trim();
+  const drive = driveRaw ? Number(driveRaw) : null;
+  if (drive !== null && (Number.isNaN(drive) || drive <= 0 || drive > 2880)) {
+    throw new Error("Drive time should be a number of minutes between 1 and 2880.");
+  }
+
   return {
     driver_id: String(formData.get("driver_id") ?? "").trim() || null,
+    drive_minutes: drive,
     label: String(formData.get("label") ?? "").trim() || null,
     seats,
     leaving_from: String(formData.get("leaving_from") ?? "").trim() || null,
