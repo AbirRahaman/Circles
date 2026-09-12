@@ -8,7 +8,7 @@ import { Card, Pill, Avatar, Note, Field, Disclosure, SectionHead } from "@/comp
 import { SubmitButton } from "@/components/SubmitButton";
 import { VoteButtons } from "@/components/VoteButtons";
 import { RsvpControl } from "@/components/RsvpControl";
-import { fmtDay, fmtTime, fmtFull, toInput, plusMinutes, fmtDuration, timeAgo } from "@/lib/format";
+import { fmtDay, fmtTime, fmtFull, fmtRange, isUnderway, toInput, plusMinutes, fmtDuration, timeAgo } from "@/lib/format";
 import type { Profile, RsvpResponse, VoteResponse } from "@/lib/types";
 
 type Car = {
@@ -112,7 +112,8 @@ export default async function EventPage({
           {event.status === "proposed" && <Pill tone="maybe" dot>Voting open</Pill>}
           {event.status === "confirmed" && <Pill tone="go" dot>Confirmed</Pill>}
           {event.status === "cancelled" && <Pill tone="no" dot>Cancelled</Pill>}
-          {event.confirmed_time && <Pill><span className="font-mono">{fmtFull(event.confirmed_time)}</span></Pill>}
+          {isUnderway(event.confirmed_time, event.ends_at) && <Pill tone="accent" dot>Happening now</Pill>}
+          {event.confirmed_time && <Pill><span className="font-mono">{fmtRange(event.confirmed_time, event.ends_at)}</span></Pill>}
           {event.location && <Pill>{event.location}</Pill>}
         </div>
         {event.notes && <p className="text-[13.5px] text-ink-2">{event.notes}</p>}
@@ -126,7 +127,10 @@ export default async function EventPage({
             <Field label="Where"><input name="location" maxLength={60} defaultValue={event.location ?? ""} /></Field>
             <Field label="Notes"><textarea name="notes" rows={3} defaultValue={event.notes ?? ""} /></Field>
             {event.status === "confirmed" && (
-              <Field label="When"><input name="when" type="datetime-local" defaultValue={toInput(event.confirmed_time)} /></Field>
+              <div className="flex gap-2.5">
+                <span className="flex-1 min-w-0"><Field label="Starts"><input name="when" type="datetime-local" defaultValue={toInput(event.confirmed_time)} /></Field></span>
+                <span className="flex-1 min-w-0"><Field label="Ends (optional)"><input name="ends" type="datetime-local" defaultValue={toInput(event.ends_at)} /></Field></span>
+              </div>
             )}
             <SubmitButton className="w-full" pendingLabel="Saving…">Save changes</SubmitButton>
             {event.status === "confirmed" && (

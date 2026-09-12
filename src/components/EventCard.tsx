@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Pill, Avatar } from "./ui";
-import { fmtFull, countdown } from "@/lib/format";
+import { fmtRange, countdown, isUnderway } from "@/lib/format";
 import type { GroupEvent, Profile } from "@/lib/types";
 
 export type EventCardData = GroupEvent & {
@@ -13,8 +13,10 @@ export type EventCardData = GroupEvent & {
 };
 
 export function EventCard({ groupId, event: e }: { groupId: string; event: EventCardData }) {
+  const underway = isUnderway(e.confirmed_time, e.ends_at);
   const status =
     e.status === "cancelled" ? <Pill tone="no" dot>Cancelled</Pill>
+    : underway ? <Pill tone="accent" dot>Happening now</Pill>
     : e.status === "proposed" ? (e.iVoted ? <Pill tone="accent" dot>Voted</Pill> : <Pill tone="maybe" dot>Needs your vote</Pill>)
     : e.myRsvp === "going" ? <Pill tone="go" dot>You are in</Pill>
     : e.myRsvp === "not_going" ? <Pill tone="no" dot>Not going</Pill>
@@ -25,7 +27,8 @@ export function EventCard({ groupId, event: e }: { groupId: string; event: Event
     e.status === "proposed"
       ? `${e.optionCount} time options · ${e.votedCount} of ${e.memberCount} voted`
       : e.confirmed_time
-        ? [fmtFull(e.confirmed_time), countdown(e.confirmed_time)].filter(Boolean).join(" · ")
+        ? [fmtRange(e.confirmed_time, e.ends_at), underway ? "" : countdown(e.confirmed_time)]
+            .filter(Boolean).join(" · ")
         : "";
 
   return (

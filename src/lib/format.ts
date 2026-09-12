@@ -109,3 +109,28 @@ export function timeAgo(iso: string) {
   const m = mins % 60;
   return m ? `${h}h ${m}m ago` : `${h}h ago`;
 }
+
+/** Same-day events read as one line with two times; multi-day ones name
+ *  both days, because "Fri 5:00 PM" tells you nothing about a weekend. */
+export function fmtRange(start: string, end?: string | null) {
+  if (!end) return fmtFull(start);
+  const sameDay = toInput(start).slice(0, 10) === toInput(end).slice(0, 10);
+  return sameDay
+    ? `${fmtDay(start)} · ${fmtTime(start)} – ${fmtTime(end)}`
+    : `${fmtDay(start)}, ${fmtTime(start)} – ${fmtDay(end)}`;
+}
+
+/** When an event has no stated end, give it six hours before it counts as
+ *  over — otherwise a dinner drops off the list while people are still at it. */
+export function effectiveEnd(start: string | null, end?: string | null) {
+  if (end) return new Date(end).getTime();
+  if (!start) return null;
+  return new Date(start).getTime() + 6 * 3_600_000;
+}
+
+export function isUnderway(start: string | null, end?: string | null) {
+  if (!start) return false;
+  const finish = effectiveEnd(start, end);
+  const now = Date.now();
+  return new Date(start).getTime() <= now && finish !== null && now < finish;
+}

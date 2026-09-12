@@ -16,10 +16,17 @@ export default async function NewEventPage({ params }: { params: Promise<{ group
       <Card className="p-3.5">
         <form action={createEvent.bind(null, groupId)} className="flex flex-col gap-3.5">
           <Field label="What is it"><input name="title" required maxLength={60} placeholder="Cabin weekend" /></Field>
-          <Field label="When"><input name="when" type="datetime-local" required defaultValue={inputFor(7, 19)} /></Field>
+          <div className="flex gap-2.5">
+            <span className="flex-1 min-w-0"><Field label="Starts"><input name="when" type="datetime-local" required defaultValue={inputFor(7, 19)} /></Field></span>
+            <span className="flex-1 min-w-0"><Field label="Ends (optional)"><input name="ends" type="datetime-local" /></Field></span>
+          </div>
           <Field label="Where (optional)"><input name="location" maxLength={60} placeholder="Mohonk, NY" /></Field>
           <Field label="Notes (optional)"><textarea name="notes" rows={3} placeholder="Who is driving, what to bring…" /></Field>
           <SubmitButton pendingLabel="Adding…" className="w-full">Add to the calendar</SubmitButton>
+          <p className="text-[12px] text-ink-2">
+            Only set an end for something that runs past one evening — a weekend away, a
+            visit. It keeps the plan in Upcoming until it&rsquo;s genuinely over.
+          </p>
         </form>
       </Card>
 

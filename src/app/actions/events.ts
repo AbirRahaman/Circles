@@ -31,6 +31,7 @@ export async function createEvent(groupId: string, formData: FormData) {
       notes: String(formData.get("notes") ?? "").trim() || null,
       status: when ? "confirmed" : "proposed",
       confirmed_time: when ? fromInput(when) : null,
+      ends_at: when ? fromInput(formData.get("ends")) : null,
     })
     .select("id")
     .single();
@@ -127,6 +128,9 @@ export async function updateEvent(groupId: string, eventId: string, formData: Fo
     notes: String(formData.get("notes") ?? "").trim() || null,
   };
   if (when) patch.confirmed_time = fromInput(when);
+  // An empty field clears the end rather than being ignored — that is how
+  // a multi-day plan gets shortened back to a single evening.
+  patch.ends_at = fromInput(formData.get("ends"));
 
   const { error } = await supabase.from("events").update(patch).eq("id", eventId);
   if (error) throw new Error(error.message);

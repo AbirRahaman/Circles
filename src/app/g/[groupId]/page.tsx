@@ -3,7 +3,7 @@ import { markNudgeSent } from "@/app/actions/albums";
 import { Card, Empty, SectionHead, LinkButton, Pill } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
 import { EventCard, type EventCardData } from "@/components/EventCard";
-import { fmtDay } from "@/lib/format";
+import { fmtDay, effectiveEnd } from "@/lib/format";
 import type { Profile } from "@/lib/types";
 
 export default async function PlansTab({ params }: { params: Promise<{ groupId: string }> }) {
@@ -55,9 +55,11 @@ export default async function PlansTab({ params }: { params: Promise<{ groupId: 
     };
   });
 
-  const cutoff = Date.now() - 6 * 3600_000;
-  const isPast = (e: EventCardData) =>
-    e.status === "cancelled" || (!!e.confirmed_time && new Date(e.confirmed_time).getTime() <= cutoff);
+  const isPast = (e: EventCardData) => {
+    if (e.status === "cancelled") return true;
+    const finish = effectiveEnd(e.confirmed_time, e.ends_at);
+    return finish !== null && finish <= Date.now();
+  };
   const sortKey = (e: EventCardData) => e.confirmed_time ?? e.created_at;
 
   const upcoming = cards.filter((e) => !isPast(e)).sort((a, b) => sortKey(a).localeCompare(sortKey(b)));

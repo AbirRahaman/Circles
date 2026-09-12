@@ -32,6 +32,7 @@ export type GroupEvent = {
   notes: string | null;
   status: EventStatus;
   confirmed_time: string | null;
+  ends_at: string | null;
   created_at: string;
 };
 
