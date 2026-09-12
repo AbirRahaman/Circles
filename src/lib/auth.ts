@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getVerifiedUser, type AuthUser } from "@/lib/supabase/verify";
 import type { Membership } from "@/lib/types";
 
 /* Both of these are wrapped in React's cache(), which memoises per request.
@@ -10,7 +11,16 @@ import type { Membership } from "@/lib/types";
 
 export const requireUser = cache(async () => {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+
+  // getVerifiedUser retries a transient failure before giving up, so a
+  // momentary blip doesn't read as "signed out" and throw someone back to
+  // the login screen mid-session.
+  let user: AuthUser | null = null;
+  try {
+    user = await getVerifiedUser(supabase);
+  } catch {
+    throw new Error("Could not reach the sign-in service. Try again in a moment.");
+  }
   if (!user) redirect("/login");
   return user;
 });

@@ -5,6 +5,7 @@ import { addAlbumLink } from "@/app/actions/albums";
 import { addCar, updateCar, removeCar, addPassenger, takeSeat, removePassenger } from "@/app/actions/rides";
 import { joinParty, logShot, undoShot, tapOut, backIn } from "@/app/actions/party";
 import { setBehavior, addCohost, removeCohost } from "@/app/actions/behavior";
+import { addJoke, removeJoke } from "@/app/actions/jokes";
 import { BEHAVIOR_LEVELS, levelLabel, levelTone } from "@/lib/behavior";
 import { Card, Pill, Avatar, Note, Field, Disclosure, SectionHead } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -43,6 +44,7 @@ export default async function EventPage({
     { data: shotRows },
     { data: behaviorRows },
     { data: cohostRows },
+    { data: jokeRows },
   ] = await Promise.all([
     supabase
       .from("events")
@@ -60,6 +62,7 @@ export default async function EventPage({
     supabase.from("party_shots").select("user_id, logged_at").eq("event_id", eventId),
     supabase.from("event_behavior").select("user_id, level, note, set_by, updated_at").eq("event_id", eventId),
     supabase.from("event_cohosts").select("user_id").eq("event_id", eventId),
+    supabase.from("event_jokes").select("id, user_id, text, created_at").eq("event_id", eventId).order("created_at", { ascending: false }),
   ]);
 
   if (!event) notFound();
@@ -115,6 +118,7 @@ export default async function EventPage({
   const ratingFor = (id: string) => ratings.find((r) => r.user_id === id) ?? null;
   const ownsEvent = event.created_by === user.id || isAdmin;
   const canRate = ownsEvent || cohosts.includes(user.id);
+  const jokes = jokeRows ?? [];
 
   const seatOf = (c: Car) => (c.car_passengers ?? []).map((p) => p.user_id);
   const inACar = new Set(cars.flatMap((c) => [c.driver_id, ...seatOf(c)]).filter(Boolean) as string[]);
@@ -581,6 +585,53 @@ export default async function EventPage({
                   )}
                 </div>
               </Disclosure>
+            )}
+          </section>
+
+          {/* ── Quote book ────────────────────────────────────────────── */}
+          <section className="flex flex-col gap-2.5">
+            <SectionHead
+              title="Inside jokes"
+              right={jokes.length > 0 ? <span className="text-[12.5px] text-ink-3">{jokes.length}</span> : null}
+            />
+
+            <Card className="p-3.5">
+              <form action={addJoke.bind(null, groupId, eventId)} className="flex gap-2 items-start">
+                <input
+                  name="text"
+                  required
+                  maxLength={280}
+                  placeholder="Something someone said…"
+                  className="flex-1 min-w-0"
+                />
+                <SubmitButton pendingLabel="Adding…">Add</SubmitButton>
+              </form>
+            </Card>
+
+            {jokes.length > 0 && (
+              <Card>
+                {jokes.map((j) => (
+                  <div key={j.id} className="px-3.5 py-3 border-b border-line last:border-b-0 flex items-start gap-3">
+                    <div className="flex-1 min-w-0 flex flex-col gap-1">
+                      <p className="text-[15px] leading-snug">{j.text}</p>
+                      <span className="text-[12px] text-ink-3">
+                        {nameOf(j.user_id)} · {timeAgo(j.created_at)}
+                      </span>
+                    </div>
+                    {j.user_id === user.id && (
+                      <form action={removeJoke.bind(null, groupId, eventId, j.id)}>
+                        <button
+                          type="submit"
+                          aria-label="Delete this one"
+                          className="text-ink-3 hover:text-no text-[15px] leading-none pt-0.5"
+                        >
+                          ×
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                ))}
+              </Card>
             )}
           </section>
 
