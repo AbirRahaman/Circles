@@ -29,7 +29,7 @@ export default async function MembersPage({ params }: { params: Promise<{ groupI
 
   const people = (rows ?? []).map((r) => ({
     ...r,
-    profile: (Array.isArray(r.profiles) ? r.profiles[0] : r.profiles) as { id: string; name: string } | null,
+    profile: (Array.isArray(r.profiles) ? r.profiles[0] : r.profiles) as { id: string; name: string; avatar_url: string | null } | null,
   }));
   const active = people.filter((p) => p.status === "active");
   const past = people.filter((p) => p.status === "left");
@@ -58,7 +58,7 @@ export default async function MembersPage({ params }: { params: Promise<{ groupI
       <Card>
         {active.map((m) => (
           <div key={m.id} className="flex items-center gap-2.5 px-3.5 py-3 border-b border-line last:border-b-0">
-            <Avatar id={m.user_id} name={m.profile?.name ?? "?"} size={34} />
+            <Avatar id={m.user_id} name={m.profile?.name ?? "?"} src={m.profile?.avatar_url} size={34} />
             <div className="flex-1 min-w-0">
               <div className="font-semibold truncate">
                 {m.profile?.name}{m.user_id === user.id && <span className="text-[12px] text-ink-2 font-normal"> you</span>}
@@ -87,7 +87,7 @@ export default async function MembersPage({ params }: { params: Promise<{ groupI
           <Card>
             {past.map((m) => (
               <div key={m.id} className="flex items-center gap-2.5 px-3.5 py-3 border-b border-line last:border-b-0 opacity-70">
-                <Avatar id={m.user_id} name={m.profile?.name ?? "?"} size={34} />
+                <Avatar id={m.user_id} name={m.profile?.name ?? "?"} src={m.profile?.avatar_url} size={34} />
                 <div className="flex-1">
                   <div className="font-semibold">{m.profile?.name}</div>
                   <div className="font-mono text-[12px] text-ink-2">left {m.left_at ? fmtDay(m.left_at) : "—"}</div>

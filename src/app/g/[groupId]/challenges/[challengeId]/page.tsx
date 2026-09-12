@@ -24,6 +24,7 @@ export default async function ChallengePage({
     .map((m) => (Array.isArray(m.profiles) ? m.profiles[0] : m.profiles) as Profile)
     .filter(Boolean);
   const nameOf = (id: string) => members.find((m) => m.id === id)?.name ?? "Someone who left";
+  const faceOf = (id: string) => members.find((m) => m.id === id)?.avatar_url ?? null;
 
   const per = new Map<string, number>();
   (entries ?? []).forEach((e) => per.set(e.user_id, (per.get(e.user_id) ?? 0) + Number(e.amount)));
@@ -65,7 +66,7 @@ export default async function ChallengePage({
             <div className="flex items-center justify-between">
               <span className="flex items-center gap-2">
                 <span className="font-mono text-[12px] text-ink-3 w-3.5">{i + 1}</span>
-                <Avatar id={r.userId} name={nameOf(r.userId)} size={24} />
+                <Avatar id={r.userId} name={nameOf(r.userId)} src={faceOf(r.userId)} size={24} />
                 <span className={`text-[13.5px] ${r.userId === user.id ? "font-bold" : ""}`}>
                   {nameOf(r.userId)}{r.userId === user.id ? " (you)" : ""}
                 </span>
@@ -99,7 +100,7 @@ export default async function ChallengePage({
             const line = (
               <>
                 <span className="flex items-center gap-2 min-w-0">
-                  <Avatar id={e.user_id} name={nameOf(e.user_id)} size={24} />
+                  <Avatar id={e.user_id} name={nameOf(e.user_id)} src={faceOf(e.user_id)} size={24} />
                   <span className="flex flex-col min-w-0">
                     <span className="text-[13.5px] truncate">{nameOf(e.user_id)}</span>
                     {e.note && <span className="text-[12px] text-ink-2 truncate">{e.note}</span>}

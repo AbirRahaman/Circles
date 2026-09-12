@@ -69,7 +69,25 @@ export function LinkButton({ href, children, variant = "primary", size = "md", c
   );
 }
 
-export function Avatar({ id, name, size = 30 }: { id: string; name: string; size?: number }) {
+export function Avatar({ id, name, src, size = 30 }: {
+  id: string; name: string; src?: string | null; size?: number;
+}) {
+  if (src) {
+    return (
+      // A plain img on purpose: provider avatars live on hosts that would
+      // each need whitelisting for next/image, for a 30px circle.
+      <img
+        src={src}
+        alt={name}
+        title={name}
+        width={size}
+        height={size}
+        referrerPolicy="no-referrer"
+        className="rounded-full object-cover shrink-0 bg-surface-3"
+        style={{ width: size, height: size }}
+      />
+    );
+  }
   return (
     <span
       className="rounded-full grid place-items-center text-white font-display font-bold shrink-0"

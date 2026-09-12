@@ -47,6 +47,7 @@ export default async function EventPage({
     .map((m) => (Array.isArray(m.profiles) ? m.profiles[0] : m.profiles) as Profile)
     .filter(Boolean);
   const nameOf = (id: string) => members.find((m) => m.id === id)?.name ?? "Someone who left";
+  const faceOf = (id: string) => members.find((m) => m.id === id)?.avatar_url ?? null;
 
   const options = [...(event.event_time_options ?? [])].sort(
     (a: { proposed_time: string }, b: { proposed_time: string }) => a.proposed_time.localeCompare(b.proposed_time)
@@ -175,7 +176,7 @@ export default async function EventPage({
             <div className="flex flex-wrap gap-1.5">
               {members.map((m) => (
                 <span key={m.id} className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[12px] font-semibold ${answered.has(m.id) ? "bg-go-soft text-go" : "bg-surface-2 text-ink-2"}`}>
-                  <Avatar id={m.id} name={m.name} size={17} />
+                  <Avatar id={m.id} name={m.name} src={m.avatar_url} size={17} />
                   {m.name}
                 </span>
               ))}
@@ -245,7 +246,7 @@ export default async function EventPage({
                       <div className="flex items-start justify-between gap-3">
                         <span className="flex items-center gap-2 min-w-0">
                           {c.driver_id
-                            ? <Avatar id={c.driver_id} name={nameOf(c.driver_id)} size={30} />
+                            ? <Avatar id={c.driver_id} name={nameOf(c.driver_id)} src={faceOf(c.driver_id)} size={30} />
                             : <span className="w-[30px] h-[30px] rounded-full border border-dashed border-line-strong shrink-0" />}
                           <span className="flex flex-col min-w-0">
                             <span className="font-semibold text-[14.5px] truncate">
@@ -292,7 +293,7 @@ export default async function EventPage({
                       <div className="flex items-center gap-1.5 flex-wrap">
                         {pax.length ? pax.map((pid) => (
                           <span key={pid} className="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1 text-[12px]">
-                            <Avatar id={pid} name={nameOf(pid)} size={17} />
+                            <Avatar id={pid} name={nameOf(pid)} src={faceOf(pid)} size={17} />
                             {nameOf(pid)}
                             <form action={removePassenger.bind(null, groupId, eventId, c.id, pid)}>
                               <button type="submit" aria-label={`Remove ${nameOf(pid)}`} className="text-ink-3 hover:text-no leading-none">×</button>
@@ -436,7 +437,7 @@ export default async function EventPage({
                     const isMe = p.user_id === user.id;
                     return (
                       <div key={p.user_id} className="flex items-center gap-2.5 py-2 border-t border-line first:border-t-0">
-                        <Avatar id={p.user_id} name={nameOf(p.user_id)} size={26} />
+                        <Avatar id={p.user_id} name={nameOf(p.user_id)} src={faceOf(p.user_id)} size={26} />
                         <span className={`flex-1 text-[14px] truncate ${isMe ? "font-semibold" : ""}`}>
                           {nameOf(p.user_id)}{isMe ? " (you)" : ""}
                         </span>

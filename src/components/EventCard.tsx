@@ -40,7 +40,7 @@ export function EventCard({ groupId, event: e }: { groupId: string; event: Event
         <div className="flex mt-2">
           {e.going.slice(0, 6).map((p, i) => (
             <span key={p.id} style={{ marginLeft: i === 0 ? 0 : -8 }} className="ring-2 ring-surface rounded-full">
-              <Avatar id={p.id} name={p.name} size={24} />
+              <Avatar id={p.id} name={p.name} src={p.avatar_url} size={24} />
             </span>
           ))}
         </div>
