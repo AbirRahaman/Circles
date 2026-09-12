@@ -9,19 +9,20 @@ export default async function MembersPage({ params }: { params: Promise<{ groupI
   const { groupId } = await params;
   const { supabase, user, isAdmin } = await requireMembership(groupId);
 
-  const { data: rows } = await supabase
-    .from("memberships")
-    .select("id, user_id, role, status, joined_at, left_at, profiles(id, name, avatar_url)")
-    .eq("group_id", groupId);
-
-  const { data: invite } = await supabase
-    .from("invites")
-    .select("token")
-    .eq("group_id", groupId)
-    .is("revoked_at", null)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const [{ data: rows }, { data: invite }] = await Promise.all([
+    supabase
+      .from("memberships")
+      .select("id, user_id, role, status, joined_at, left_at, profiles(id, name, avatar_url)")
+      .eq("group_id", groupId),
+    supabase
+      .from("invites")
+      .select("token")
+      .eq("group_id", groupId)
+      .is("revoked_at", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
 
   const h = await headers();
   const origin = process.env.NEXT_PUBLIC_SITE_URL ?? `https://${h.get("host")}`;

@@ -9,12 +9,14 @@ export default async function GroupLayout({
   const { groupId } = await params;
   const { supabase } = await requireMembership(groupId);
 
-  const { data: group } = await supabase.from("friend_groups").select("name").eq("id", groupId).single();
-  const { count } = await supabase
-    .from("memberships")
-    .select("id", { count: "exact", head: true })
-    .eq("group_id", groupId)
-    .eq("status", "active");
+  const [{ data: group }, { count }] = await Promise.all([
+    supabase.from("friend_groups").select("name").eq("id", groupId).single(),
+    supabase
+      .from("memberships")
+      .select("id", { count: "exact", head: true })
+      .eq("group_id", groupId)
+      .eq("status", "active"),
+  ]);
 
   return (
     <div className="shell shell--app">

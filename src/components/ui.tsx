@@ -1,3 +1,4 @@
+export { Disclosure } from "./Disclosure";
 import Link from "next/link";
 import { colorFor, initials } from "@/lib/format";
 
@@ -138,18 +139,25 @@ export function Field({ label, children }: { label: string; children: React.Reac
   );
 }
 
-/** A form tucked behind its own button. Uses <details> so it needs no
- *  client JavaScript and keeps working with the keyboard. */
-export function Disclosure({ label, children }: { label: string; children: React.ReactNode }) {
+/** Placeholder bar for loading states. Sized in the flow, never animated
+ *  into view from invisible. */
+export function Skeleton({ w = "100%", h = 12 }: { w?: string; h?: number }) {
   return (
-    <details className="group bg-surface border border-line rounded-xl shadow-card overflow-hidden">
-      <summary className="flex items-center justify-between gap-3 px-3.5 py-3 min-h-11 cursor-pointer list-none font-semibold text-[15px] hover:bg-surface-2 [&::-webkit-details-marker]:hidden">
-        {label}
-        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-ink-3 transition-transform group-open:rotate-45">
-          <path d="M12 5v14M5 12h14" />
-        </svg>
-      </summary>
-      <div className="border-t border-line p-3.5">{children}</div>
-    </details>
+    <span
+      aria-hidden="true"
+      className="block rounded-full bg-surface-3 animate-pulse motion-reduce:animate-none"
+      style={{ width: w, height: h }}
+    />
+  );
+}
+
+export function CardSkeleton({ lines = 3 }: { lines?: number }) {
+  const widths = ["70%", "45%", "88%", "60%", "52%"];
+  return (
+    <div className="bg-surface border border-line rounded-xl shadow-card p-3.5 flex flex-col gap-2.5">
+      {Array.from({ length: lines }).map((_, i) => (
+        <Skeleton key={i} w={widths[i % widths.length]} h={i === 0 ? 16 : 12} />
+      ))}
+    </div>
   );
 }

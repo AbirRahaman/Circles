@@ -30,18 +30,33 @@ export default async function EventPage({
   const { groupId, eventId } = await params;
   const { supabase, user, isAdmin } = await requireMembership(groupId);
 
-  const { data: event } = await supabase
-    .from("events")
-    .select("*, event_time_options(id, proposed_time), event_rsvps(user_id, response)")
-    .eq("id", eventId)
-    .maybeSingle();
-  if (!event) notFound();
+  // One wave. None of these depend on each other; only the vote lookup
+  // below needs the event first, because it keys off its time options.
+  const [
+    { data: event },
+    { data: memberRows },
+    { data: albums },
+    { data: carRows },
+    { data: partyRows },
+    { data: shotRows },
+  ] = await Promise.all([
+    supabase
+      .from("events")
+      .select("*, event_time_options(id, proposed_time), event_rsvps(user_id, response)")
+      .eq("id", eventId)
+      .maybeSingle(),
+    supabase
+      .from("memberships")
+      .select("user_id, profiles(id, name, avatar_url)")
+      .eq("group_id", groupId)
+      .eq("status", "active"),
+    supabase.from("album_links").select("*").eq("event_id", eventId),
+    supabase.from("event_cars").select("*, car_passengers(user_id)").eq("event_id", eventId),
+    supabase.from("event_party").select("user_id, joined_at, out_at").eq("event_id", eventId).order("joined_at"),
+    supabase.from("party_shots").select("user_id, logged_at").eq("event_id", eventId),
+  ]);
 
-  const { data: memberRows } = await supabase
-    .from("memberships")
-    .select("user_id, profiles(id, name, avatar_url)")
-    .eq("group_id", groupId)
-    .eq("status", "active");
+  if (!event) notFound();
 
   const members: Profile[] = (memberRows ?? [])
     .map((m) => (Array.isArray(m.profiles) ? m.profiles[0] : m.profiles) as Profile)
@@ -76,18 +91,7 @@ export default async function EventPage({
   const myRsvp = rsvps.find((r) => r.user_id === user.id)?.response;
   const canManage = isAdmin || event.created_by === user.id;
 
-  const { data: albums } = await supabase.from("album_links").select("*").eq("event_id", eventId);
-
-  const { data: carRows } = await supabase
-    .from("event_cars")
-    .select("*, car_passengers(user_id)")
-    .eq("event_id", eventId);
   const cars = (carRows ?? []) as Car[];
-
-  const [{ data: partyRows }, { data: shotRows }] = await Promise.all([
-    supabase.from("event_party").select("user_id, joined_at, out_at").eq("event_id", eventId).order("joined_at"),
-    supabase.from("party_shots").select("user_id, logged_at").eq("event_id", eventId),
-  ]);
   const party = partyRows ?? [];
   const shots = shotRows ?? [];
   const myParty = party.find((p) => p.user_id === user.id);
