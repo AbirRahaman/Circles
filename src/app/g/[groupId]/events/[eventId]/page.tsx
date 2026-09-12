@@ -3,7 +3,7 @@ import { requireMembership } from "@/lib/auth";
 import { confirmTime, cancelEvent, reopenVoting, updateEvent } from "@/app/actions/events";
 import { addAlbumLink } from "@/app/actions/albums";
 import { addCar, updateCar, removeCar, addPassenger, takeSeat, removePassenger } from "@/app/actions/rides";
-import { joinParty, leaveParty, logShot, undoShot } from "@/app/actions/party";
+import { joinParty, logShot, undoShot, tapOut, backIn } from "@/app/actions/party";
 import { Card, Pill, Avatar, Note, Field, Disclosure, SectionHead } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
 import { VoteButtons } from "@/components/VoteButtons";
@@ -85,12 +85,15 @@ export default async function EventPage({
   const cars = (carRows ?? []) as Car[];
 
   const [{ data: partyRows }, { data: shotRows }] = await Promise.all([
-    supabase.from("event_party").select("user_id, joined_at").eq("event_id", eventId).order("joined_at"),
+    supabase.from("event_party").select("user_id, joined_at, out_at").eq("event_id", eventId).order("joined_at"),
     supabase.from("party_shots").select("user_id, logged_at").eq("event_id", eventId),
   ]);
   const party = partyRows ?? [];
   const shots = shotRows ?? [];
-  const inParty = party.some((p) => p.user_id === user.id);
+  const myParty = party.find((p) => p.user_id === user.id);
+  const inParty = !!myParty;
+  const iAmOut = !!myParty?.out_at;
+  const stillGoing = party.filter((p) => !p.out_at).length;
   const shotsBy = (id: string) => shots.filter((x) => x.user_id === id).length;
   const myShots = shotsBy(user.id);
   const lastShot = shots.length
@@ -399,7 +402,7 @@ export default async function EventPage({
           <section className="flex flex-col gap-2.5">
             <SectionHead
               title="Party"
-              right={party.length > 0 ? <span className="text-[12.5px] text-ink-3">{party.length} in</span> : null}
+              right={party.length > 0 ? <span className="text-[12.5px] text-ink-3">{stillGoing} still going</span> : null}
             />
 
             {party.length === 0 ? (
@@ -419,16 +422,36 @@ export default async function EventPage({
                 </div>
 
                 {inParty ? (
-                  <div className="flex gap-2">
-                    <form action={logShot.bind(null, groupId, eventId)} className="flex-1">
-                      <SubmitButton className="w-full" pendingLabel="Counting…">Took a shot</SubmitButton>
-                    </form>
-                    {myShots > 0 && (
-                      <form action={undoShot.bind(null, groupId, eventId)}>
-                        <SubmitButton variant="ghost" pendingLabel="Undoing…">Undo</SubmitButton>
+                  iAmOut ? (
+                    <div className="flex flex-col gap-2">
+                      <p className="text-[13.5px] text-ink-2">
+                        You&rsquo;re marked out for the night. Your {myShots} stay&rsquo;{myShots === 1 ? "" : "s"} on the board.
+                      </p>
+                      <form action={backIn.bind(null, groupId, eventId)}>
+                        <SubmitButton variant="ghost" className="w-full" pendingLabel="Welcome back…">
+                          Actually, I&rsquo;m back
+                        </SubmitButton>
                       </form>
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      <div className="flex gap-2">
+                        <form action={logShot.bind(null, groupId, eventId)} className="flex-1">
+                          <SubmitButton className="w-full" pendingLabel="Counting…">Took a shot</SubmitButton>
+                        </form>
+                        {myShots > 0 && (
+                          <form action={undoShot.bind(null, groupId, eventId)}>
+                            <SubmitButton variant="ghost" pendingLabel="Undoing…">Undo</SubmitButton>
+                          </form>
+                        )}
+                      </div>
+                      <form action={tapOut.bind(null, groupId, eventId)}>
+                        <SubmitButton variant="quiet" size="sm" className="w-full" pendingLabel="Noted…">
+                          I&rsquo;m out, I threw up 🤮
+                        </SubmitButton>
+                      </form>
+                    </div>
+                  )
                 ) : (
                   <form action={joinParty.bind(null, groupId, eventId)}>
                     <SubmitButton className="w-full" pendingLabel="Joining…">Join the party</SubmitButton>
@@ -439,11 +462,16 @@ export default async function EventPage({
                   {party.map((p) => {
                     const n = shotsBy(p.user_id);
                     const isMe = p.user_id === user.id;
+                    const isOut = !!p.out_at;
                     return (
-                      <div key={p.user_id} className="flex items-center gap-2.5 py-2 border-t border-line first:border-t-0">
+                      <div
+                        key={p.user_id}
+                        className={`flex items-center gap-2.5 py-2 border-t border-line first:border-t-0 ${isOut ? "opacity-50" : ""}`}
+                      >
                         <Avatar id={p.user_id} name={nameOf(p.user_id)} src={faceOf(p.user_id)} size={26} />
                         <span className={`flex-1 text-[14px] truncate ${isMe ? "font-semibold" : ""}`}>
                           {nameOf(p.user_id)}{isMe ? " (you)" : ""}
+                          {isOut && <span title={`Tapped out ${timeAgo(p.out_at as string)}`} aria-label="tapped out"> 🤮</span>}
                         </span>
                         <span className="font-mono text-[15px] tabular-nums">{n}</span>
                       </div>
@@ -451,13 +479,6 @@ export default async function EventPage({
                   })}
                 </div>
 
-                {inParty && (
-                  <form action={leaveParty.bind(null, groupId, eventId)}>
-                    <SubmitButton size="sm" variant="quiet" pendingLabel="Leaving…">
-                      I&rsquo;m out — clear my tally
-                    </SubmitButton>
-                  </form>
-                )}
               </Card>
             )}
           </section>

@@ -56,3 +56,29 @@ export async function undoShot(groupId: string, eventId: string) {
   if (last) await supabase.from("party_shots").delete().eq("id", last.id);
   bump(groupId, eventId);
 }
+
+/** Done for the night. The count is kept — it just stops being live. */
+export async function tapOut(groupId: string, eventId: string) {
+  const user = await requireUser();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("event_party")
+    .update({ out_at: new Date().toISOString() })
+    .eq("event_id", eventId)
+    .eq("user_id", user.id);
+  if (error) throw new Error(error.message);
+  bump(groupId, eventId);
+}
+
+/** Second wind, or a mis-tap. */
+export async function backIn(groupId: string, eventId: string) {
+  const user = await requireUser();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("event_party")
+    .update({ out_at: null })
+    .eq("event_id", eventId)
+    .eq("user_id", user.id);
+  if (error) throw new Error(error.message);
+  bump(groupId, eventId);
+}
