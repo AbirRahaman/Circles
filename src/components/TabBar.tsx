@@ -24,7 +24,7 @@ export function TabBar({ groupId }: { groupId: string }) {
 
   return (
     <nav className="appnav">
-      <span className="appnav__brand">Circles</span>
+      <Link href="/groups" className="appnav__brand">Circles</Link>
       {tabs.map((t) => {
         const active = t.href === base
           ? path === base || path.startsWith(`${base}/events`)

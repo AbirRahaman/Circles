@@ -21,7 +21,7 @@ export default async function GroupLayout({
       <TopBar
         title={group?.name ?? "Group"}
         sub={`${count ?? 0} member${count === 1 ? "" : "s"}`}
-        back="/"
+        back="/groups"
         actions={
           <div className="flex gap-1">
             <Link href={`/g/${groupId}/members`} aria-label="People" className="w-8 h-8 grid place-items-center rounded-lg text-ink-2 hover:bg-surface-2 hover:text-ink">

@@ -134,6 +134,7 @@ body { -webkit-font-smoothing: antialiased; }
   .appnav__item[aria-current="page"] { font-weight: 600; }
   .appnav__brand {
     display: block;
+    text-decoration: none;
     font-size: 17px;
     font-weight: 700;
     letter-spacing: -0.02em;

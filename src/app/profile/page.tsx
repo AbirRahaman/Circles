@@ -30,7 +30,7 @@ export default async function ProfilePage() {
 
   return (
     <div className="shell">
-      <TopBar title="You" back="/" />
+      <TopBar title="You" back="/groups" />
       <main className="flex-1 flex flex-col gap-5 px-3.5 py-4">
         <Card className="p-3.5 flex items-center gap-3">
           <Avatar id={user.id} name={profile?.name ?? "?"} src={profile?.avatar_url} size={52} />
