@@ -4,6 +4,8 @@ import { confirmTime, cancelEvent, reopenVoting, updateEvent } from "@/app/actio
 import { addAlbumLink } from "@/app/actions/albums";
 import { addCar, updateCar, removeCar, addPassenger, takeSeat, removePassenger } from "@/app/actions/rides";
 import { joinParty, logShot, undoShot, tapOut, backIn } from "@/app/actions/party";
+import { setBehavior, addCohost, removeCohost } from "@/app/actions/behavior";
+import { BEHAVIOR_LEVELS, levelLabel, levelTone } from "@/lib/behavior";
 import { Card, Pill, Avatar, Note, Field, Disclosure, SectionHead } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
 import { VoteButtons } from "@/components/VoteButtons";
@@ -39,6 +41,8 @@ export default async function EventPage({
     { data: carRows },
     { data: partyRows },
     { data: shotRows },
+    { data: behaviorRows },
+    { data: cohostRows },
   ] = await Promise.all([
     supabase
       .from("events")
@@ -54,6 +58,8 @@ export default async function EventPage({
     supabase.from("event_cars").select("*, car_passengers(user_id)").eq("event_id", eventId),
     supabase.from("event_party").select("user_id, joined_at, out_at").eq("event_id", eventId).order("joined_at"),
     supabase.from("party_shots").select("user_id, logged_at").eq("event_id", eventId),
+    supabase.from("event_behavior").select("user_id, level, note, set_by, updated_at").eq("event_id", eventId),
+    supabase.from("event_cohosts").select("user_id").eq("event_id", eventId),
   ]);
 
   if (!event) notFound();
@@ -103,6 +109,12 @@ export default async function EventPage({
   const lastShot = shots.length
     ? [...shots].sort((a, b) => b.logged_at.localeCompare(a.logged_at))[0].logged_at
     : null;
+
+  const ratings = behaviorRows ?? [];
+  const cohosts = (cohostRows ?? []).map((c) => c.user_id);
+  const ratingFor = (id: string) => ratings.find((r) => r.user_id === id) ?? null;
+  const ownsEvent = event.created_by === user.id || isAdmin;
+  const canRate = ownsEvent || cohosts.includes(user.id);
 
   const seatOf = (c: Car) => (c.car_passengers ?? []).map((p) => p.user_id);
   const inACar = new Set(cars.flatMap((c) => [c.driver_id, ...seatOf(c)]).filter(Boolean) as string[]);
@@ -484,6 +496,91 @@ export default async function EventPage({
                 </div>
 
               </Card>
+            )}
+          </section>
+
+          {/* ── Conduct ───────────────────────────────────────────────── */}
+          <section className="flex flex-col gap-2.5">
+            <SectionHead
+              title="Behavior"
+              right={<span className="text-[12.5px] text-ink-3">{ratings.length} rated</span>}
+            />
+
+            <Card>
+              {members.map((m) => {
+                const r = ratingFor(m.id);
+                return (
+                  <div key={m.id} className="px-3.5 py-3 border-b border-line last:border-b-0 flex flex-col gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <Avatar id={m.id} name={m.name} src={m.avatar_url} size={28} />
+                      <span className="flex-1 text-[14.5px] truncate">
+                        {m.name}{m.id === user.id ? " (you)" : ""}
+                      </span>
+                      {r
+                        ? <Pill tone={levelTone(r.level)}>{levelLabel(r.level)}</Pill>
+                        : <span className="text-[12.5px] text-ink-3">unrated</span>}
+                    </div>
+
+                    {r?.note && <p className="text-[12.5px] text-ink-2 pl-[38px]">{r.note}</p>}
+
+                    {canRate && (
+                      <form action={setBehavior.bind(null, groupId, eventId, m.id)} className="flex gap-2 items-center pl-[38px]">
+                        <select name="level" defaultValue={r ? String(r.level) : ""} className="flex-1 min-w-0 text-[13.5px] py-1.5">
+                          <option value="">No rating</option>
+                          {BEHAVIOR_LEVELS.map((label, i) => (
+                            <option key={label} value={i + 1}>{i + 1}. {label}</option>
+                          ))}
+                        </select>
+                        <SubmitButton size="sm" variant="quiet" pendingLabel="Saving…">Set</SubmitButton>
+                      </form>
+                    )}
+                  </div>
+                );
+              })}
+            </Card>
+
+            {!canRate && (
+              <Note>
+                {nameOf(event.created_by)} runs the ratings for this event, along with anyone
+                they&rsquo;ve made a co-host.
+              </Note>
+            )}
+
+            {ownsEvent && (
+              <Disclosure label="Who can rate">
+                <div className="flex flex-col gap-3">
+                  <p className="text-[12.5px] text-ink-2">
+                    You can always rate, as the person who made this event. Co-hosts can rate
+                    too, but can&rsquo;t appoint further co-hosts.
+                  </p>
+
+                  {cohosts.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {cohosts.map((id) => (
+                        <span key={id} className="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1 text-[12px]">
+                          <Avatar id={id} name={nameOf(id)} src={faceOf(id)} size={17} />
+                          {nameOf(id)}
+                          <form action={removeCohost.bind(null, groupId, eventId, id)}>
+                            <button type="submit" aria-label={`Remove ${nameOf(id)} as co-host`} className="text-ink-3 hover:text-no leading-none">×</button>
+                          </form>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {members.filter((m) => m.id !== event.created_by && !cohosts.includes(m.id)).length > 0 && (
+                    <form action={addCohost.bind(null, groupId, eventId)} className="flex gap-2 items-center">
+                      <select name="user_id" defaultValue="" className="flex-1 min-w-0 text-[13.5px] py-1.5">
+                        <option value="" disabled>Add a co-host…</option>
+                        {members
+                          .filter((m) => m.id !== event.created_by && !cohosts.includes(m.id))
+                          .map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                      </select>
+                      <SubmitButton size="sm" pendingLabel="Adding…">Add</SubmitButton>
+                    </form>
+                  )}
+                </div>
+              </Disclosure>
             )}
           </section>
 
