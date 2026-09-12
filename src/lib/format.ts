@@ -100,3 +100,12 @@ export function fmtDuration(mins: number) {
   const m = mins % 60;
   return m ? `${h}h ${m}m` : `${h}h`;
 }
+
+export function timeAgo(iso: string) {
+  const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins} min ago`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m ? `${h}h ${m}m ago` : `${h}h ago`;
+}

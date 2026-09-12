@@ -3,11 +3,12 @@ import { requireMembership } from "@/lib/auth";
 import { confirmTime, cancelEvent, reopenVoting, updateEvent } from "@/app/actions/events";
 import { addAlbumLink } from "@/app/actions/albums";
 import { addCar, updateCar, removeCar, addPassenger, takeSeat, removePassenger } from "@/app/actions/rides";
+import { joinParty, leaveParty, logShot, undoShot } from "@/app/actions/party";
 import { Card, Pill, Avatar, Note, Field, Disclosure, SectionHead } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
 import { VoteButtons } from "@/components/VoteButtons";
 import { RsvpControl } from "@/components/RsvpControl";
-import { fmtDay, fmtTime, fmtFull, toInput, plusMinutes, fmtDuration } from "@/lib/format";
+import { fmtDay, fmtTime, fmtFull, toInput, plusMinutes, fmtDuration, timeAgo } from "@/lib/format";
 import type { Profile, RsvpResponse, VoteResponse } from "@/lib/types";
 
 type Car = {
@@ -81,6 +82,19 @@ export default async function EventPage({
     .select("*, car_passengers(user_id)")
     .eq("event_id", eventId);
   const cars = (carRows ?? []) as Car[];
+
+  const [{ data: partyRows }, { data: shotRows }] = await Promise.all([
+    supabase.from("event_party").select("user_id, joined_at").eq("event_id", eventId).order("joined_at"),
+    supabase.from("party_shots").select("user_id, logged_at").eq("event_id", eventId),
+  ]);
+  const party = partyRows ?? [];
+  const shots = shotRows ?? [];
+  const inParty = party.some((p) => p.user_id === user.id);
+  const shotsBy = (id: string) => shots.filter((x) => x.user_id === id).length;
+  const myShots = shotsBy(user.id);
+  const lastShot = shots.length
+    ? [...shots].sort((a, b) => b.logged_at.localeCompare(a.logged_at))[0].logged_at
+    : null;
 
   const seatOf = (c: Car) => (c.car_passengers ?? []).map((p) => p.user_id);
   const inACar = new Set(cars.flatMap((c) => [c.driver_id, ...seatOf(c)]).filter(Boolean) as string[]);
@@ -374,6 +388,73 @@ export default async function EventPage({
                 <SubmitButton className="w-full" pendingLabel="Adding…">Add the car</SubmitButton>
               </form>
             </Disclosure>
+          </section>
+
+          {/* ── The night itself ──────────────────────────────────────── */}
+          <section className="flex flex-col gap-2.5">
+            <SectionHead
+              title="Party"
+              right={party.length > 0 ? <span className="text-[12.5px] text-ink-3">{party.length} in</span> : null}
+            />
+
+            {party.length === 0 ? (
+              <form action={joinParty.bind(null, groupId, eventId)}>
+                <SubmitButton variant="ghost" className="w-full" pendingLabel="Joining…">
+                  Start a tally for tonight
+                </SubmitButton>
+              </form>
+            ) : (
+              <Card className="p-3.5 flex flex-col gap-4">
+                <div className="flex items-end justify-between gap-3">
+                  <div className="flex flex-col">
+                    <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-ink-3">Shots, all in</span>
+                    <span className="font-mono text-[40px] font-bold leading-none tracking-[-0.03em]">{shots.length}</span>
+                  </div>
+                  {lastShot && <span className="text-[12.5px] text-ink-2 pb-1">last one {timeAgo(lastShot)}</span>}
+                </div>
+
+                {inParty ? (
+                  <div className="flex gap-2">
+                    <form action={logShot.bind(null, groupId, eventId)} className="flex-1">
+                      <SubmitButton className="w-full" pendingLabel="Counting…">Took a shot</SubmitButton>
+                    </form>
+                    {myShots > 0 && (
+                      <form action={undoShot.bind(null, groupId, eventId)}>
+                        <SubmitButton variant="ghost" pendingLabel="Undoing…">Undo</SubmitButton>
+                      </form>
+                    )}
+                  </div>
+                ) : (
+                  <form action={joinParty.bind(null, groupId, eventId)}>
+                    <SubmitButton className="w-full" pendingLabel="Joining…">Join the party</SubmitButton>
+                  </form>
+                )}
+
+                <div className="flex flex-col">
+                  {party.map((p) => {
+                    const n = shotsBy(p.user_id);
+                    const isMe = p.user_id === user.id;
+                    return (
+                      <div key={p.user_id} className="flex items-center gap-2.5 py-2 border-t border-line first:border-t-0">
+                        <Avatar id={p.user_id} name={nameOf(p.user_id)} size={26} />
+                        <span className={`flex-1 text-[14px] truncate ${isMe ? "font-semibold" : ""}`}>
+                          {nameOf(p.user_id)}{isMe ? " (you)" : ""}
+                        </span>
+                        <span className="font-mono text-[15px] tabular-nums">{n}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {inParty && (
+                  <form action={leaveParty.bind(null, groupId, eventId)}>
+                    <SubmitButton size="sm" variant="quiet" pendingLabel="Leaving…">
+                      I&rsquo;m out — clear my tally
+                    </SubmitButton>
+                  </form>
+                )}
+              </Card>
+            )}
           </section>
 
           <Card className="p-3.5 flex flex-col gap-3">
