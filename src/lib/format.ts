@@ -134,3 +134,6 @@ export function isUnderway(start: string | null, end?: string | null) {
   const now = Date.now();
   return new Date(start).getTime() <= now && finish !== null && now < finish;
 }
+
+/** Today's calendar date in the group's timezone, as YYYY-MM-DD. */
+export const groupToday = () => toInput(new Date().toISOString()).slice(0, 10);

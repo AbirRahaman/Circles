@@ -3,15 +3,15 @@ import { requireMembership } from "@/lib/auth";
 import { confirmTime, cancelEvent, reopenVoting, updateEvent } from "@/app/actions/events";
 import { addAlbumLink } from "@/app/actions/albums";
 import { addCar, updateCar, removeCar, addPassenger, takeSeat, removePassenger } from "@/app/actions/rides";
-import { joinParty, logShot, undoShot, tapOut, backIn } from "@/app/actions/party";
 import { setBehavior, addCohost, removeCohost } from "@/app/actions/behavior";
 import { addJoke, removeJoke } from "@/app/actions/jokes";
+import { createTally, deleteTally, logTally, undoTally, setTallyOptOut } from "@/app/actions/tallies";
 import { BEHAVIOR_LEVELS, levelLabel, levelTone } from "@/lib/behavior";
 import { Card, Pill, Avatar, Note, Field, Disclosure, SectionHead } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
 import { VoteButtons } from "@/components/VoteButtons";
 import { RsvpControl } from "@/components/RsvpControl";
-import { fmtDay, fmtTime, fmtFull, fmtRange, isUnderway, toInput, plusMinutes, fmtDuration, timeAgo } from "@/lib/format";
+import { fmtDay, fmtTime, fmtFull, fmtRange, isUnderway, toInput, plusMinutes, fmtDuration, timeAgo, num } from "@/lib/format";
 import type { Profile, RsvpResponse, VoteResponse } from "@/lib/types";
 
 type Car = {
@@ -40,11 +40,12 @@ export default async function EventPage({
     { data: memberRows },
     { data: albums },
     { data: carRows },
-    { data: partyRows },
-    { data: shotRows },
     { data: behaviorRows },
     { data: cohostRows },
     { data: jokeRows },
+    { data: tallyRows },
+    { data: tallyEntryRows },
+    { data: tallyPaxRows },
   ] = await Promise.all([
     supabase
       .from("events")
@@ -58,11 +59,12 @@ export default async function EventPage({
       .eq("status", "active"),
     supabase.from("album_links").select("*").eq("event_id", eventId),
     supabase.from("event_cars").select("*, car_passengers(user_id)").eq("event_id", eventId),
-    supabase.from("event_party").select("user_id, joined_at, out_at").eq("event_id", eventId).order("joined_at"),
-    supabase.from("party_shots").select("user_id, logged_at").eq("event_id", eventId),
     supabase.from("event_behavior").select("user_id, level, note, set_by, updated_at").eq("event_id", eventId),
     supabase.from("event_cohosts").select("user_id").eq("event_id", eventId),
     supabase.from("event_jokes").select("id, user_id, text, created_at").eq("event_id", eventId).order("created_at", { ascending: false }),
+    supabase.from("event_tallies").select("id, title, created_by, created_at").eq("event_id", eventId).order("created_at"),
+    supabase.from("tally_entries").select("tally_id, user_id, amount"),
+    supabase.from("tally_participants").select("tally_id, user_id, opted_out_at"),
   ]);
 
   if (!event) notFound();
@@ -101,24 +103,18 @@ export default async function EventPage({
   const canManage = isAdmin || event.created_by === user.id;
 
   const cars = (carRows ?? []) as Car[];
-  const party = partyRows ?? [];
-  const shots = shotRows ?? [];
-  const myParty = party.find((p) => p.user_id === user.id);
-  const inParty = !!myParty;
-  const iAmOut = !!myParty?.out_at;
-  const stillGoing = party.filter((p) => !p.out_at).length;
-  const shotsBy = (id: string) => shots.filter((x) => x.user_id === id).length;
-  const myShots = shotsBy(user.id);
-  const lastShot = shots.length
-    ? [...shots].sort((a, b) => b.logged_at.localeCompare(a.logged_at))[0].logged_at
-    : null;
-
   const ratings = behaviorRows ?? [];
   const cohosts = (cohostRows ?? []).map((c) => c.user_id);
   const ratingFor = (id: string) => ratings.find((r) => r.user_id === id) ?? null;
   const ownsEvent = event.created_by === user.id || isAdmin;
   const canRate = ownsEvent || cohosts.includes(user.id);
   const jokes = jokeRows ?? [];
+
+  const tallies = tallyRows ?? [];
+  const tallyIds = new Set(tallies.map((t) => t.id));
+  // RLS already limits these to groups you belong to; narrow to this event.
+  const tallyEntries = (tallyEntryRows ?? []).filter((e) => tallyIds.has(e.tally_id));
+  const tallyPax = (tallyPaxRows ?? []).filter((p) => tallyIds.has(p.tally_id));
 
   const seatOf = (c: Car) => (c.car_passengers ?? []).map((p) => p.user_id);
   const inACar = new Set(cars.flatMap((c) => [c.driver_id, ...seatOf(c)]).filter(Boolean) as string[]);
@@ -418,89 +414,120 @@ export default async function EventPage({
             </Disclosure>
           </section>
 
-          {/* ── The night itself ──────────────────────────────────────── */}
+          {/* ── Tallies ───────────────────────────────────────────────── */}
           <section className="flex flex-col gap-2.5">
             <SectionHead
-              title="Party"
-              right={party.length > 0 ? <span className="text-[12.5px] text-ink-3">{stillGoing} still going</span> : null}
+              title="Tallies"
+              right={tallies.length > 0 ? <span className="text-[12.5px] text-ink-3">{tallies.length}</span> : null}
             />
 
-            {party.length === 0 ? (
-              <form action={joinParty.bind(null, groupId, eventId)}>
-                <SubmitButton variant="ghost" className="w-full" pendingLabel="Joining…">
-                  Start a tally for tonight
-                </SubmitButton>
-              </form>
-            ) : (
-              <Card className="p-3.5 flex flex-col gap-4">
-                <div className="flex items-end justify-between gap-3">
-                  <div className="flex flex-col">
-                    <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-ink-3">Shots, all in</span>
-                    <span className="font-mono text-[40px] font-bold leading-none tracking-[-0.03em]">{shots.length}</span>
-                  </div>
-                  {lastShot && <span className="text-[12.5px] text-ink-2 pb-1">last one {timeAgo(lastShot)}</span>}
-                </div>
+            {tallies.map((t) => {
+              const rows = tallyEntries.filter((e) => e.tally_id === t.id);
+              const pax = tallyPax.filter((p) => p.tally_id === t.id);
+              const total = rows.reduce((a, e) => a + Number(e.amount), 0);
+              const subtotal = (id: string) =>
+                rows.filter((e) => e.user_id === id).reduce((a, e) => a + Number(e.amount), 0);
 
-                {inParty ? (
-                  iAmOut ? (
+              const shown = members.filter(
+                (m) => rows.some((e) => e.user_id === m.id) || pax.some((p) => p.user_id === m.id)
+              );
+              const mine = subtotal(user.id);
+              const iAmOut = !!pax.find((p) => p.user_id === user.id)?.opted_out_at;
+
+              return (
+                <Card key={t.id} className="p-3.5 flex flex-col gap-4">
+                  <div className="flex items-end justify-between gap-3">
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-ink-3 truncate">
+                        {t.title}
+                      </span>
+                      <span className="font-mono text-[40px] font-bold leading-none tracking-[-0.03em] tabular-nums">
+                        {num(total)}
+                      </span>
+                    </div>
+                    {(t.created_by === user.id || ownsEvent) && (
+                      <form action={deleteTally.bind(null, groupId, eventId, t.id)}>
+                        <button type="submit" aria-label={`Delete ${t.title}`} className="text-[12.5px] text-ink-3 hover:text-no">
+                          Remove
+                        </button>
+                      </form>
+                    )}
+                  </div>
+
+                  {iAmOut ? (
                     <div className="flex flex-col gap-2">
                       <p className="text-[13.5px] text-ink-2">
-                        You&rsquo;re marked out for the night. Your {myShots} stay&rsquo;{myShots === 1 ? "" : "s"} on the board.
+                        You&rsquo;re sitting this one out. Your {num(mine)} stays counted.
                       </p>
-                      <form action={backIn.bind(null, groupId, eventId)}>
-                        <SubmitButton variant="ghost" className="w-full" pendingLabel="Welcome back…">
-                          Actually, I&rsquo;m back
-                        </SubmitButton>
+                      <form action={setTallyOptOut.bind(null, groupId, eventId, t.id, false)}>
+                        <SubmitButton variant="ghost" className="w-full" pendingLabel="Joining…">Join back in</SubmitButton>
                       </form>
                     </div>
                   ) : (
                     <div className="flex flex-col gap-2">
                       <div className="flex gap-2">
-                        <form action={logShot.bind(null, groupId, eventId)} className="flex-1">
-                          <SubmitButton className="w-full" pendingLabel="Counting…">Took a shot</SubmitButton>
+                        <form action={logTally.bind(null, groupId, eventId, t.id)} className="flex-1">
+                          <SubmitButton className="w-full" pendingLabel="Adding…">+1</SubmitButton>
                         </form>
-                        {myShots > 0 && (
-                          <form action={undoShot.bind(null, groupId, eventId)}>
+                        {mine > 0 && (
+                          <form action={undoTally.bind(null, groupId, eventId, t.id)}>
                             <SubmitButton variant="ghost" pendingLabel="Undoing…">Undo</SubmitButton>
                           </form>
                         )}
                       </div>
-                      <form action={tapOut.bind(null, groupId, eventId)}>
-                        <SubmitButton variant="quiet" size="sm" className="w-full" pendingLabel="Noted…">
-                          I&rsquo;m out, I threw up 🤮
-                        </SubmitButton>
-                      </form>
-                    </div>
-                  )
-                ) : (
-                  <form action={joinParty.bind(null, groupId, eventId)}>
-                    <SubmitButton className="w-full" pendingLabel="Joining…">Join the party</SubmitButton>
-                  </form>
-                )}
-
-                <div className="flex flex-col">
-                  {party.map((p) => {
-                    const n = shotsBy(p.user_id);
-                    const isMe = p.user_id === user.id;
-                    const isOut = !!p.out_at;
-                    return (
-                      <div
-                        key={p.user_id}
-                        className={`flex items-center gap-2.5 py-2 border-t border-line first:border-t-0 ${isOut ? "opacity-50" : ""}`}
-                      >
-                        <Avatar id={p.user_id} name={nameOf(p.user_id)} src={faceOf(p.user_id)} size={26} />
-                        <span className={`flex-1 text-[14px] truncate ${isMe ? "font-semibold" : ""}`}>
-                          {nameOf(p.user_id)}{isMe ? " (you)" : ""}
-                          {isOut && <span title={`Tapped out ${timeAgo(p.out_at as string)}`} aria-label="tapped out"> 🤮</span>}
-                        </span>
-                        <span className="font-mono text-[15px] tabular-nums">{n}</span>
+                      <div className="flex gap-2 items-center">
+                        <form action={logTally.bind(null, groupId, eventId, t.id)} className="flex gap-2 items-center flex-1">
+                          <input
+                            name="amount"
+                            type="number"
+                            min="0"
+                            step="any"
+                            placeholder="Other amount"
+                            className="flex-1 min-w-0 text-[13.5px] py-1.5"
+                          />
+                          <SubmitButton size="sm" variant="quiet" pendingLabel="Adding…">Add</SubmitButton>
+                        </form>
+                        <form action={setTallyOptOut.bind(null, groupId, eventId, t.id, true)}>
+                          <button type="submit" className="text-[12.5px] text-ink-3 hover:text-ink whitespace-nowrap">
+                            Sit out
+                          </button>
+                        </form>
                       </div>
-                    );
-                  })}
-                </div>
+                    </div>
+                  )}
 
-              </Card>
-            )}
+                  {shown.length > 0 && (
+                    <div className="flex flex-col">
+                      {shown.map((m) => {
+                        const isOut = !!pax.find((p) => p.user_id === m.id)?.opted_out_at;
+                        return (
+                          <div
+                            key={m.id}
+                            className={`flex items-center gap-2.5 py-2 border-t border-line first:border-t-0 ${isOut ? "opacity-50" : ""}`}
+                          >
+                            <Avatar id={m.id} name={m.name} src={m.avatar_url} size={26} />
+                            <span className={`flex-1 text-[14px] truncate ${m.id === user.id ? "font-semibold" : ""}`}>
+                              {m.name}{m.id === user.id ? " (you)" : ""}
+                              {isOut && <span className="text-ink-3 font-normal"> · sitting out</span>}
+                            </span>
+                            <span className="font-mono text-[15px] tabular-nums">{num(subtotal(m.id))}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
+
+            <Disclosure label={tallies.length ? "Add another tally" : "Start a tally"}>
+              <form action={createTally.bind(null, groupId, eventId)} className="flex flex-col gap-3">
+                <Field label="What are you counting">
+                  <input name="title" required maxLength={60} />
+                </Field>
+                <SubmitButton className="w-full" pendingLabel="Creating…">Create tally</SubmitButton>
+              </form>
+            </Disclosure>
           </section>
 
           {/* ── Conduct ───────────────────────────────────────────────── */}
