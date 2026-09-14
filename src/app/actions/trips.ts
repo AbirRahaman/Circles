@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth";
 import { fromInput } from "@/lib/format";
@@ -18,44 +17,6 @@ const optionalMoney = (v: FormDataEntryValue | null, label: string) => {
   if (!Number.isFinite(n) || n < 0) throw new Error(`${label} should be a number, or left blank.`);
   return n;
 };
-
-export async function createTrip(groupId: string, formData: FormData) {
-  const title = String(formData.get("title") ?? "").trim();
-  if (!title) throw new Error("What are you proposing?");
-
-  const start = fromInput(formData.get("when"));
-  const end = fromInput(formData.get("ends"));
-  if (!start) throw new Error("A trip needs a start date.");
-  if (!end) throw new Error("A trip needs an end date — that's what makes it a trip.");
-  if (end <= start) throw new Error("The end has to come after the start.");
-
-  const user = await requireUser();
-  const supabase = await createClient();
-
-  const { data: ev, error } = await supabase
-    .from("events")
-    .insert({
-      group_id: groupId,
-      created_by: user.id,
-      kind: "trip",
-      title,
-      location: String(formData.get("location") ?? "").trim() || null,
-      notes: String(formData.get("notes") ?? "").trim() || null,
-      status: "confirmed",
-      confirmed_time: start,
-      ends_at: end,
-      budget_per_person: optionalMoney(formData.get("budget_per_person"), "The budget"),
-    })
-    .select("id")
-    .single();
-  if (error || !ev) throw new Error(error?.message ?? "Could not create the trip.");
-
-  // Proposing it means you're in.
-  await supabase.from("event_rsvps").insert({ event_id: ev.id, user_id: user.id, response: "going" });
-
-  revalidatePath(`/g/${groupId}`);
-  redirect(`/g/${groupId}/events/${ev.id}`);
-}
 
 export async function setTripBudget(groupId: string, eventId: string, formData: FormData) {
   await requireUser();

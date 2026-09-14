@@ -21,7 +21,7 @@ export function EventCard({ groupId, event: e }: { groupId: string; event: Event
     : underway ? <Pill tone="accent" dot>Happening now</Pill>
     : e.status === "proposed"
       ? e.optionCount === 0
-        ? <Pill tone="maybe" dot>Finding a date</Pill>
+        ? <Pill tone="maybe" dot>Pending</Pill>
         : e.iVoted ? <Pill tone="accent" dot>Voted</Pill> : <Pill tone="maybe" dot>Needs your vote</Pill>
     : over
       ? e.myRsvp === "going" ? <Pill tone="go" dot>You attended</Pill>
@@ -36,7 +36,7 @@ export function EventCard({ groupId, event: e }: { groupId: string; event: Event
   const meta =
     e.status === "proposed"
       ? e.optionCount === 0
-        ? "Checking who's free"
+        ? [e.confirmed_time ? fmtRange(e.confirmed_time, e.ends_at) : "", "not locked in yet"].filter(Boolean).join(" · ")
         : `${e.optionCount} time options · ${e.votedCount} of ${e.memberCount} voted`
       : e.confirmed_time
         ? [fmtRange(e.confirmed_time, e.ends_at), underway ? "" : countdown(e.confirmed_time)]

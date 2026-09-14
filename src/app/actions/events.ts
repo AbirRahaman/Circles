@@ -5,49 +5,126 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth";
 import type { RsvpResponse, VoteResponse } from "@/lib/types";
-import { fromInput } from "@/lib/format";
+import { fromInput, toInput } from "@/lib/format";
 
-export async function createEvent(groupId: string, formData: FormData) {
+const addDays = (key: string, n: number) =>
+  new Date(new Date(`${key}T12:00:00Z`).getTime() + n * 86_400_000).toISOString().slice(0, 10);
+
+/** One way to make a plan. It is an outing or a trip, and it is either
+ *  locked in or still being decided — nothing else branches. A pending plan
+ *  gets a window around its proposed dates so the scheduling assistant has
+ *  somewhere to look. */
+export async function createPlan(groupId: string, formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
   if (!title) throw new Error("What are you planning?");
 
-  // Two ways in: a date you already know, or a poll over several options.
-  const when = String(formData.get("when") ?? "").trim();
-  const times = formData.getAll("time").map(String).filter(Boolean);
+  const isTrip = String(formData.get("kind") ?? "outing") === "trip";
+  const pending = String(formData.get("settled") ?? "yes") === "no";
 
-  if (!when && times.length === 0) throw new Error("Pick a date, or add times to vote on.");
-  if (times.length > 5) throw new Error("Five options is the maximum.");
+  const when = fromInput(formData.get("when"));
+  const ends = fromInput(formData.get("ends"));
+  if (!when) throw new Error("Give it a date, even a rough one.");
+  if (ends && ends <= when) throw new Error("The end has to come after the start.");
+  if (isTrip && !ends) throw new Error("A trip needs an end date — that's what makes it a trip.");
+
+  const budgetRaw = String(formData.get("budget_per_person") ?? "").trim();
+  const budget = budgetRaw ? Number(budgetRaw) : null;
+  if (budget !== null && (!Number.isFinite(budget) || budget < 0)) {
+    throw new Error("The budget should be a number, or left blank.");
+  }
 
   const user = await requireUser();
   const supabase = await createClient();
+
+  // A week before the proposal, two after: enough room to move it without
+  // asking people to consider a month they'll never read.
+  const anchor = toInput(when).slice(0, 10);
+  const tail = toInput(ends ?? when).slice(0, 10);
 
   const { data: ev, error } = await supabase
     .from("events")
     .insert({
       group_id: groupId,
       created_by: user.id,
+      kind: isTrip ? "trip" : "outing",
       title,
       location: String(formData.get("location") ?? "").trim() || null,
       notes: String(formData.get("notes") ?? "").trim() || null,
-      status: when ? "confirmed" : "proposed",
-      confirmed_time: when ? fromInput(when) : null,
-      ends_at: when ? fromInput(formData.get("ends")) : null,
+      status: pending ? "proposed" : "confirmed",
+      confirmed_time: when,
+      ends_at: ends,
+      budget_per_person: isTrip ? budget : null,
+      window_start: pending ? addDays(anchor, -7) : null,
+      window_end: pending ? addDays(tail, 14) : null,
     })
     .select("id")
     .single();
-  if (error || !ev) throw new Error(error?.message ?? "Could not create the event.");
+  if (error || !ev) throw new Error(error?.message ?? "Could not create the plan.");
 
-  if (when) {
-    // Whoever sets the date is going, or they wouldn't have set it.
-    await supabase.from("event_rsvps").insert({ event_id: ev.id, user_id: user.id, response: "going" });
-  } else {
-    const rows = times.map((t) => ({ event_id: ev.id, proposed_time: fromInput(t) }));
-    const { error: optErr } = await supabase.from("event_time_options").insert(rows);
-    if (optErr) throw new Error(optErr.message);
-  }
+  // Whoever puts it in is in.
+  await supabase.from("event_rsvps").insert({ event_id: ev.id, user_id: user.id, response: "going" });
 
   revalidatePath(`/g/${groupId}`);
   redirect(`/g/${groupId}/events/${ev.id}`);
+}
+
+/** Turn a pending plan into a settled one, optionally moving the dates. */
+export async function confirmPlan(groupId: string, eventId: string, formData: FormData) {
+  const when = fromInput(formData.get("when"));
+  if (!when) throw new Error("Pick the date you're locking in.");
+  const ends = fromInput(formData.get("ends"));
+  if (ends && ends <= when) throw new Error("The end has to come after the start.");
+
+  await requireUser();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("events")
+    .update({ status: "confirmed", confirmed_time: when, ends_at: ends, window_start: null, window_end: null })
+    .eq("id", eventId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/g/${groupId}/events/${eventId}`);
+  revalidatePath(`/g/${groupId}`);
+}
+
+/** Put a settled plan back in play — the dates stay as a starting point. */
+export async function unconfirmPlan(groupId: string, eventId: string) {
+  await requireUser();
+  const supabase = await createClient();
+  const { data: ev } = await supabase.from("events").select("confirmed_time, ends_at").eq("id", eventId).single();
+  const anchor = toInput(ev?.confirmed_time ?? new Date().toISOString()).slice(0, 10);
+  const tail = toInput(ev?.ends_at ?? ev?.confirmed_time ?? new Date().toISOString()).slice(0, 10);
+
+  const { error } = await supabase
+    .from("events")
+    .update({ status: "proposed", window_start: addDays(anchor, -7), window_end: addDays(tail, 14) })
+    .eq("id", eventId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/g/${groupId}/events/${eventId}`);
+  revalidatePath(`/g/${groupId}`);
+}
+
+/** Widen or narrow where the scheduling assistant looks. */
+export async function setPlanWindow(groupId: string, eventId: string, formData: FormData) {
+  const from = String(formData.get("window_start") ?? "");
+  const to = String(formData.get("window_end") ?? "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+    throw new Error("Set both ends of the window.");
+  }
+  if (to < from) throw new Error("The window ends before it starts.");
+  if ((Date.parse(`${to}T12:00:00Z`) - Date.parse(`${from}T12:00:00Z`)) / 86_400_000 > 60) {
+    throw new Error("Keep the window to 60 days or fewer.");
+  }
+
+  await requireUser();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("events")
+    .update({ window_start: from, window_end: to })
+    .eq("id", eventId);
+  if (error) throw new Error(error.message);
+  revalidatePath(`/g/${groupId}/events/${eventId}`);
 }
 
 /** Tapping the response you already gave clears it. */

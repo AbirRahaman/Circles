@@ -1,12 +1,12 @@
 import { notFound } from "next/navigation";
 import { requireMembership } from "@/lib/auth";
-import { confirmTime, cancelEvent, reopenVoting, updateEvent } from "@/app/actions/events";
+import { confirmTime, cancelEvent, updateEvent, confirmPlan, unconfirmPlan, setPlanWindow } from "@/app/actions/events";
 import { addAlbumLink } from "@/app/actions/albums";
 import { addCar, updateCar, removeCar, addPassenger, takeSeat, removePassenger } from "@/app/actions/rides";
 import { setBehavior, addCohost, removeCohost } from "@/app/actions/behavior";
 import { addJoke, removeJoke } from "@/app/actions/jokes";
 import { setTripBudget, addTripItem, setTripItemStatus, removeTripItem } from "@/app/actions/trips";
-import { saveAvailability, confirmFromWindow } from "@/app/actions/availability";
+import { saveAvailability } from "@/app/actions/availability";
 import { TRIP_KINDS, kindLabel, money, perPersonEstimate } from "@/lib/trip";
 import { createTally, deleteTally, logTally, undoTally, setTallyOptOut } from "@/app/actions/tallies";
 import { BEHAVIOR_LEVELS, levelLabel, levelTone } from "@/lib/behavior";
@@ -121,17 +121,25 @@ export default async function EventPage({
   const jokes = jokeRows ?? [];
 
   // A date search is a proposed event with a window and no fixed slots.
-  const isSearch = event.status === "proposed" && !!event.window_start && !!event.window_end;
-  const avail = (availRows ?? []) as { user_id: string; unavailable: string[] | null; note: string | null }[];
-  const myAvail = avail.find((a) => a.user_id === user.id) ?? null;
-
   const addDay = (key: string, n: number) =>
     new Date(new Date(`${key}T12:00:00Z`).getTime() + n * 86_400_000).toISOString().slice(0, 10);
 
+  const isPending = event.status === "proposed";
+  const isLegacyPoll = isPending && options.length > 0;
+  const isSearch = isPending && !isLegacyPoll;
+  const avail = (availRows ?? []) as { user_id: string; unavailable: string[] | null; note: string | null }[];
+  const myAvail = avail.find((a) => a.user_id === user.id) ?? null;
+
+  // Fall back to a fortnight around the proposed date if no window is stored.
+  const winFrom = (event.window_start as string | null)
+    ?? (event.confirmed_time ? addDay(toInput(event.confirmed_time).slice(0, 10), -7) : null);
+  const winTo = (event.window_end as string | null)
+    ?? (event.confirmed_time ? addDay(toInput(event.ends_at ?? event.confirmed_time).slice(0, 10), 14) : null);
+
   const windowDays: string[] = [];
-  if (isSearch) {
-    let d = event.window_start as string;
-    for (let guard = 0; guard < 61 && d <= (event.window_end as string); guard++) {
+  if (isSearch && winFrom && winTo) {
+    let d = winFrom;
+    for (let guard = 0; guard < 61 && d <= winTo; guard++) {
       windowDays.push(d);
       d = addDay(d, 1);
     }
@@ -191,7 +199,7 @@ export default async function EventPage({
       <Card className="p-3.5 flex flex-col gap-2.5">
         <h1 className="text-[22px] font-bold tracking-[-0.02em] leading-tight">{event.title}</h1>
         <div className="flex flex-wrap gap-1.5">
-          {event.status === "proposed" && <Pill tone="maybe" dot>Voting open</Pill>}
+          {isPending && <Pill tone="maybe" dot>Pending</Pill>}
           {event.status === "confirmed" && <Pill tone="go" dot>Confirmed</Pill>}
           {event.status === "cancelled" && <Pill tone="no" dot>Cancelled</Pill>}
           {isUnderway(event.confirmed_time, event.ends_at) && <Pill tone="accent" dot>Happening now</Pill>}
@@ -415,23 +423,36 @@ export default async function EventPage({
           </Card>
 
           {canManage && (
-            <Disclosure label="Settle on a day">
-              <form action={confirmFromWindow.bind(null, groupId, eventId)} className="flex flex-col gap-3">
-                <div className="flex gap-2.5">
-                  <span className="flex-1 min-w-0"><Field label="Starts"><input name="when" type="datetime-local" required /></Field></span>
-                  <span className="flex-1 min-w-0"><Field label="Ends (optional)"><input name="ends" type="datetime-local" /></Field></span>
-                </div>
-                <SubmitButton className="w-full" pendingLabel="Locking in…">Lock it in</SubmitButton>
-                <p className="text-[12px] text-ink-2">
-                  This turns the search into a normal confirmed event and opens RSVPs.
-                </p>
-              </form>
-            </Disclosure>
+            <>
+              <Disclosure label="Lock it in">
+                <form action={confirmPlan.bind(null, groupId, eventId)} className="flex flex-col gap-3">
+                  <div className="flex gap-2.5">
+                    <span className="flex-1 min-w-0"><Field label="Starts"><input name="when" type="datetime-local" required defaultValue={toInput(event.confirmed_time)} /></Field></span>
+                    <span className="flex-1 min-w-0"><Field label="Ends (optional)"><input name="ends" type="datetime-local" defaultValue={toInput(event.ends_at)} /></Field></span>
+                  </div>
+                  <SubmitButton className="w-full" pendingLabel="Locking in…">Confirm these dates</SubmitButton>
+                  <p className="text-[12px] text-ink-2">
+                    Pre-filled with what was proposed — change it to whatever the grid says works.
+                    Confirming opens RSVPs.
+                  </p>
+                </form>
+              </Disclosure>
+
+              <Disclosure label="Look at a different stretch of dates">
+                <form action={setPlanWindow.bind(null, groupId, eventId)} className="flex flex-col gap-3">
+                  <div className="flex gap-2.5">
+                    <span className="flex-1 min-w-0"><Field label="From"><input name="window_start" type="date" required defaultValue={winFrom ?? ""} /></Field></span>
+                    <span className="flex-1 min-w-0"><Field label="To"><input name="window_end" type="date" required defaultValue={winTo ?? ""} /></Field></span>
+                  </div>
+                  <SubmitButton className="w-full" pendingLabel="Updating…">Update the window</SubmitButton>
+                </form>
+              </Disclosure>
+            </>
           )}
         </>
       )}
 
-      {event.status === "proposed" && !isSearch && (
+      {isLegacyPoll && (
         <>
           <Card className="p-3.5">
             <div className="flex items-baseline justify-between mb-1">
@@ -956,8 +977,8 @@ export default async function EventPage({
       {canManage && event.status !== "cancelled" && (
         <div className="flex gap-2">
           {event.status === "confirmed" && (
-            <form action={reopenVoting.bind(null, groupId, eventId)} className="flex-1">
-              <SubmitButton variant="ghost" size="sm" className="w-full">Reopen voting</SubmitButton>
+            <form action={unconfirmPlan.bind(null, groupId, eventId)} className="flex-1">
+              <SubmitButton variant="ghost" size="sm" className="w-full">Back to pending</SubmitButton>
             </form>
           )}
           <form action={cancelEvent.bind(null, groupId, eventId)} className="flex-1">
