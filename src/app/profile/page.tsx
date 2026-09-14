@@ -81,7 +81,10 @@ export default async function ProfilePage() {
           </Card>
         </section>
 
-        <Link href="/privacy" className="text-[13px] text-accent px-0.5">What Circles stores about you</Link>
+        <div className="flex flex-col gap-2 px-0.5">
+          <Link href="/calendar" className="text-[13px] text-accent">Your calendar and sync settings</Link>
+          <Link href="/privacy" className="text-[13px] text-accent">What Circles stores about you</Link>
+        </div>
       </main>
     </div>
   );
