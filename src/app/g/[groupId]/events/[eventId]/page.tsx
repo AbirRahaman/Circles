@@ -5,13 +5,16 @@ import { addAlbumLink } from "@/app/actions/albums";
 import { addCar, updateCar, removeCar, addPassenger, takeSeat, removePassenger } from "@/app/actions/rides";
 import { setBehavior, addCohost, removeCohost } from "@/app/actions/behavior";
 import { addJoke, removeJoke } from "@/app/actions/jokes";
+import { setTripBudget, addTripItem, setTripItemStatus, removeTripItem } from "@/app/actions/trips";
+import { saveAvailability, confirmFromWindow } from "@/app/actions/availability";
+import { TRIP_KINDS, kindLabel, money, perPersonEstimate } from "@/lib/trip";
 import { createTally, deleteTally, logTally, undoTally, setTallyOptOut } from "@/app/actions/tallies";
 import { BEHAVIOR_LEVELS, levelLabel, levelTone } from "@/lib/behavior";
-import { Card, Pill, Avatar, Note, Field, Disclosure, SectionHead } from "@/components/ui";
+import { Card, Pill, Avatar, Note, Field, Disclosure, SectionHead, ProgressBar } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
 import { VoteButtons } from "@/components/VoteButtons";
 import { RsvpControl } from "@/components/RsvpControl";
-import { fmtDay, fmtTime, fmtFull, fmtRange, isUnderway, toInput, plusMinutes, fmtDuration, timeAgo, num } from "@/lib/format";
+import { fmtDay, fmtTime, fmtFull, fmtRange, isUnderway, effectiveEnd, toInput, plusMinutes, fmtDuration, timeAgo, num } from "@/lib/format";
 import type { Profile, RsvpResponse, VoteResponse } from "@/lib/types";
 
 type Car = {
@@ -43,6 +46,8 @@ export default async function EventPage({
     { data: behaviorRows },
     { data: cohostRows },
     { data: jokeRows },
+    { data: tripRows },
+    { data: availRows },
     { data: tallyRows },
     { data: tallyEntryRows },
     { data: tallyPaxRows },
@@ -62,6 +67,8 @@ export default async function EventPage({
     supabase.from("event_behavior").select("user_id, level, note, set_by, updated_at").eq("event_id", eventId),
     supabase.from("event_cohosts").select("user_id").eq("event_id", eventId),
     supabase.from("event_jokes").select("id, user_id, text, created_at").eq("event_id", eventId).order("created_at", { ascending: false }),
+    supabase.from("trip_items").select("*").eq("event_id", eventId).order("starts_at", { nullsFirst: false }),
+    supabase.from("event_availability").select("user_id, unavailable, note").eq("event_id", eventId),
     supabase.from("event_tallies").select("id, title, created_by, created_at").eq("event_id", eventId).order("created_at"),
     supabase.from("tally_entries").select("tally_id, user_id, amount"),
     supabase.from("tally_participants").select("tally_id, user_id, opted_out_at"),
@@ -101,6 +108,8 @@ export default async function EventPage({
   const rsvps = (event.event_rsvps ?? []) as { user_id: string; response: RsvpResponse }[];
   const myRsvp = rsvps.find((r) => r.user_id === user.id)?.response;
   const canManage = isAdmin || event.created_by === user.id;
+  const eventFinish = effectiveEnd(event.confirmed_time, event.ends_at);
+  const eventOver = eventFinish !== null && eventFinish <= Date.now();
 
   const cars = (carRows ?? []) as Car[];
   const ratings = behaviorRows ?? [];
@@ -109,6 +118,37 @@ export default async function EventPage({
   const ownsEvent = event.created_by === user.id || isAdmin;
   const canRate = ownsEvent || cohosts.includes(user.id);
   const jokes = jokeRows ?? [];
+
+  // A date search is a proposed event with a window and no fixed slots.
+  const isSearch = event.status === "proposed" && !!event.window_start && !!event.window_end;
+  const avail = (availRows ?? []) as { user_id: string; unavailable: string[] | null; note: string | null }[];
+  const myAvail = avail.find((a) => a.user_id === user.id) ?? null;
+
+  const addDay = (key: string, n: number) =>
+    new Date(new Date(`${key}T12:00:00Z`).getTime() + n * 86_400_000).toISOString().slice(0, 10);
+
+  const windowDays: string[] = [];
+  if (isSearch) {
+    let d = event.window_start as string;
+    for (let guard = 0; guard < 61 && d <= (event.window_end as string); guard++) {
+      windowDays.push(d);
+      d = addDay(d, 1);
+    }
+  }
+
+  const blockedOn = (day: string) => avail.filter((a) => (a.unavailable ?? []).includes(day));
+  const bestCount = windowDays.length
+    ? Math.min(...windowDays.map((d) => blockedOn(d).length))
+    : 0;
+
+  const isTrip = event.kind === "trip";
+  const tripItems = (tripRows ?? []) as {
+    id: string; kind: string; status: string; title: string; detail: string | null;
+    url: string | null; starts_at: string | null; cost: number | null; per_person: boolean;
+  }[];
+  const goingCount = rsvps.filter((r) => r.response === "going").length;
+  const estimate = perPersonEstimate(tripItems, goingCount);
+  const budget = event.budget_per_person != null ? Number(event.budget_per_person) : null;
 
   const tallies = tallyRows ?? [];
   const tallyIds = new Set(tallies.map((t) => t.id));
@@ -161,7 +201,222 @@ export default async function EventPage({
         </Disclosure>
       )}
 
-      {event.status === "proposed" && (
+      {isTrip && event.status !== "cancelled" && (
+        <section className="flex flex-col gap-2.5">
+          <SectionHead
+            title="The plan"
+            right={<span className="text-[12.5px] text-ink-3">{tripItems.length} item{tripItems.length === 1 ? "" : "s"}</span>}
+          />
+
+          <Card className="p-3.5 flex flex-col gap-3">
+            <div className="flex items-end justify-between gap-3">
+              <div className="flex flex-col">
+                <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-ink-3">
+                  Each, so far
+                </span>
+                <span className="font-mono text-[32px] font-bold leading-none tracking-[-0.03em]">
+                  {money(estimate.each)}
+                </span>
+              </div>
+              {budget != null && (
+                <span className="text-[12.5px] text-ink-2 pb-1">
+                  of {money(budget)} budget
+                </span>
+              )}
+            </div>
+
+            {budget != null && budget > 0 && (
+              <ProgressBar pct={(estimate.each / budget) * 100} tone={estimate.each > budget ? "muted" : "accent"} />
+            )}
+
+            <p className="text-[12px] text-ink-2">
+              Shared costs split {estimate.people} way{estimate.people === 1 ? "" : "s"} — the number
+              of people currently going, so it moves as people commit.
+              {estimate.shared > 0 && ` ${money(estimate.shared)} of the total is shared.`}
+            </p>
+
+            <Disclosure label={budget == null ? "Set a budget" : "Change the budget"}>
+              <form action={setTripBudget.bind(null, groupId, eventId)} className="flex flex-col gap-3">
+                <Field label="Budget per person (blank to clear)">
+                  <input name="budget_per_person" type="number" min="0" step="any" defaultValue={budget ?? ""} />
+                </Field>
+                <SubmitButton className="w-full" pendingLabel="Saving…">Save budget</SubmitButton>
+              </form>
+            </Disclosure>
+          </Card>
+
+          {TRIP_KINDS.map(({ value, label }) => {
+            const list = tripItems.filter((i) => i.kind === value);
+            if (list.length === 0) return null;
+            return (
+              <div key={value} className="flex flex-col gap-1.5">
+                <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-ink-3 px-0.5">{label}</span>
+                <Card>
+                  {list.map((i) => (
+                    <div key={i.id} className="px-3.5 py-3 border-b border-line last:border-b-0 flex flex-col gap-1.5">
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="flex-1 min-w-0 font-semibold text-[14.5px]">{i.title}</span>
+                        {i.status === "booked"
+                          ? <Pill tone="go">Booked</Pill>
+                          : <Pill tone="maybe">Idea</Pill>}
+                      </div>
+
+                      <div className="flex gap-3 flex-wrap font-mono text-[12.5px] text-ink-2">
+                        {i.starts_at && <span>{fmtFull(i.starts_at)}</span>}
+                        {i.cost != null && (
+                          <span className="text-ink">
+                            {money(Number(i.cost))}{i.per_person ? " each" : " total"}
+                          </span>
+                        )}
+                      </div>
+
+                      {i.detail && <p className="text-[12.5px] text-ink-2">{i.detail}</p>}
+                      {i.url && (
+                        <a href={i.url} target="_blank" rel="noopener" className="text-[12.5px] text-accent break-all">
+                          {i.url.replace(/^https?:\/\//, "").slice(0, 60)}
+                        </a>
+                      )}
+
+                      <div className="flex gap-2 items-center">
+                        <form action={setTripItemStatus.bind(null, groupId, eventId, i.id, i.status === "booked" ? "idea" : "booked")}>
+                          <SubmitButton size="sm" variant="quiet" pendingLabel="Saving…">
+                            {i.status === "booked" ? "Back to idea" : "Mark booked"}
+                          </SubmitButton>
+                        </form>
+                        <form action={removeTripItem.bind(null, groupId, eventId, i.id)}>
+                          <button type="submit" className="text-[12.5px] text-ink-3 hover:text-no">Remove</button>
+                        </form>
+                      </div>
+                    </div>
+                  ))}
+                </Card>
+              </div>
+            );
+          })}
+
+          <Disclosure label="Add to the plan">
+            <form action={addTripItem.bind(null, groupId, eventId)} className="flex flex-col gap-3">
+              <div className="flex gap-2.5">
+                <span className="flex-1 min-w-0">
+                  <Field label="Kind">
+                    <select name="kind" defaultValue="housing">
+                      {TRIP_KINDS.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}
+                    </select>
+                  </Field>
+                </span>
+                <span className="flex-1 min-w-0">
+                  <Field label="Status">
+                    <select name="status" defaultValue="idea">
+                      <option value="idea">Idea</option>
+                      <option value="booked">Booked</option>
+                    </select>
+                  </Field>
+                </span>
+              </div>
+              <Field label="What is it"><input name="title" required maxLength={120} placeholder="Cabin on the lake" /></Field>
+              <Field label="Detail (optional)"><input name="detail" maxLength={200} placeholder="Sleeps 6, two bathrooms" /></Field>
+              <Field label="Link (optional)"><input name="url" type="url" placeholder="https://…" /></Field>
+              <div className="flex gap-2.5">
+                <span className="flex-1 min-w-0"><Field label="Cost (optional)"><input name="cost" type="number" min="0" step="any" placeholder="600" /></Field></span>
+                <span className="flex-1 min-w-0"><Field label="When (optional)"><input name="starts_at" type="datetime-local" /></Field></span>
+              </div>
+              <label className="flex items-center gap-2 text-[13.5px]">
+                <input type="checkbox" name="per_person" className="w-4 h-4" />
+                That price is per person
+              </label>
+              <SubmitButton className="w-full" pendingLabel="Adding…">Add it</SubmitButton>
+            </form>
+          </Disclosure>
+        </section>
+      )}
+
+      {isSearch && (
+        <>
+          <Card className="p-3.5 flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-[12.5px] font-semibold uppercase tracking-[0.06em] text-ink-2">Which days are out for you?</h2>
+              <span className="text-[12.5px] text-ink-3">{avail.length} of {members.length} answered</span>
+            </div>
+            <p className="text-[13px] text-ink-2">
+              Tap only the days you <strong>can&rsquo;t</strong> do. Everything you leave alone counts as fine.
+            </p>
+
+            <form action={saveAvailability.bind(null, groupId, eventId)} className="flex flex-col gap-3">
+              <div className="grid grid-cols-7 gap-1">
+                {windowDays.map((d) => {
+                  const mineBlocked = (myAvail?.unavailable ?? []).includes(d);
+                  const others = blockedOn(d).filter((a) => a.user_id !== user.id).length;
+                  return (
+                    <label
+                      key={d}
+                      className="relative flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-md border border-line-strong cursor-pointer text-[11px] has-[:checked]:bg-no-soft has-[:checked]:border-no has-[:checked]:text-no hover:bg-surface-2"
+                    >
+                      <input type="checkbox" name="unavailable" value={d} defaultChecked={mineBlocked} className="sr-only w-0 h-0 p-0 border-0" />
+                      <span className="tabular-nums font-semibold leading-none">{Number(d.slice(8))}</span>
+                      <span className="text-[9px] leading-none text-ink-3">{fmtDay(`${d}T12:00:00Z`).slice(0, 3)}</span>
+                      {others > 0 && <span className="text-[9px] leading-none text-maybe">{others}</span>}
+                    </label>
+                  );
+                })}
+              </div>
+              <Field label="Note (optional)"><input name="note" maxLength={120} defaultValue={myAvail?.note ?? ""} placeholder="Away the first week" /></Field>
+              <SubmitButton className="w-full" pendingLabel="Saving…">
+                {myAvail ? "Update my answer" : "Send my answer"}
+              </SubmitButton>
+            </form>
+          </Card>
+
+          <Card className="p-3.5 flex flex-col gap-3">
+            <h2 className="text-[12.5px] font-semibold uppercase tracking-[0.06em] text-ink-2">Clearest days</h2>
+            {avail.length === 0 ? (
+              <p className="text-[13.5px] text-ink-2">Nobody has answered yet.</p>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                {windowDays
+                  .filter((d) => blockedOn(d).length === bestCount)
+                  .slice(0, 8)
+                  .map((d) => {
+                    const out = blockedOn(d);
+                    return (
+                      <div key={d} className="flex items-center justify-between gap-3 py-1.5 border-b border-line last:border-b-0">
+                        <span className="text-[14px] font-semibold">{fmtDay(`${d}T12:00:00Z`)}</span>
+                        {out.length === 0
+                          ? <Pill tone="go">Everyone free</Pill>
+                          : <Pill tone="maybe">{out.map((a) => nameOf(a.user_id)).join(", ")} out</Pill>}
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+            {avail.some((a) => a.note) && (
+              <div className="flex flex-col gap-1 pt-1">
+                {avail.filter((a) => a.note).map((a) => (
+                  <span key={a.user_id} className="text-[12.5px] text-ink-2">
+                    <strong className="text-ink">{nameOf(a.user_id)}:</strong> {a.note}
+                  </span>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          {canManage && (
+            <Disclosure label="Settle on a day">
+              <form action={confirmFromWindow.bind(null, groupId, eventId)} className="flex flex-col gap-3">
+                <div className="flex gap-2.5">
+                  <span className="flex-1 min-w-0"><Field label="Starts"><input name="when" type="datetime-local" required /></Field></span>
+                  <span className="flex-1 min-w-0"><Field label="Ends (optional)"><input name="ends" type="datetime-local" /></Field></span>
+                </div>
+                <SubmitButton className="w-full" pendingLabel="Locking in…">Lock it in</SubmitButton>
+                <p className="text-[12px] text-ink-2">
+                  This turns the search into a normal confirmed event and opens RSVPs.
+                </p>
+              </form>
+            </Disclosure>
+          )}
+        </>
+      )}
+
+      {event.status === "proposed" && !isSearch && (
         <>
           <Card className="p-3.5">
             <div className="flex items-baseline justify-between mb-1">
@@ -226,10 +481,13 @@ export default async function EventPage({
       {event.status === "confirmed" && (
         <>
           <Card className="p-3.5 flex flex-col gap-3">
-            <h2 className="text-[12.5px] font-semibold uppercase tracking-[0.06em] text-ink-2">Are you coming?</h2>
+            <h2 className="text-[12.5px] font-semibold uppercase tracking-[0.06em] text-ink-2">{eventOver ? "Who was there" : "Are you coming?"}</h2>
             <RsvpControl groupId={groupId} eventId={eventId} mine={myRsvp} />
             <div className="flex flex-col gap-2">
-              {([["going", "Going", "go"], ["maybe", "Maybe", "maybe"], ["not_going", "Out", "no"]] as const).map(([key, label, tone]) => {
+              {(eventOver
+                ? ([["going", "Went", "go"], ["maybe", "Maybe", "maybe"], ["not_going", "Didn’t", "no"]] as const)
+                : ([["going", "Going", "go"], ["maybe", "Maybe", "maybe"], ["not_going", "Out", "no"]] as const)
+              ).map(([key, label, tone]) => {
                 const list = rsvps.filter((r) => r.response === key);
                 if (!list.length) return null;
                 return (

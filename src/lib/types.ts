@@ -31,8 +31,10 @@ export type GroupEvent = {
   location: string | null;
   notes: string | null;
   status: EventStatus;
+  kind: "outing" | "trip";
   confirmed_time: string | null;
   ends_at: string | null;
+  budget_per_person: number | null;
   created_at: string;
 };
 
