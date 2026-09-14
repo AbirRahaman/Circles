@@ -36,24 +36,7 @@ export default async function NewEventPage({ params }: { params: Promise<{ group
         </form>
       </Card>
 
-      {/* Still available when the date is the thing in dispute. */}
-      <Disclosure label="Not sure of the date? Put it to a vote">
-        <form action={createEvent.bind(null, groupId)} className="flex flex-col gap-3.5">
-          <Field label="What is it"><input name="title" required maxLength={60} placeholder="Cabin weekend" /></Field>
-          <Field label="Where (optional)"><input name="location" maxLength={60} placeholder="Mohonk, NY" /></Field>
-          <Field label="Notes (optional)"><textarea name="notes" rows={2} placeholder="Who is driving, what to bring…" /></Field>
-          <div className="flex flex-col gap-2">
-            <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-ink-3">Times to choose between</span>
-            {[0, 1, 2].map((i) => (
-              <input key={i} type="datetime-local" name="time" defaultValue={i < 2 ? inputFor(7 + i * 7, 19) : ""} />
-            ))}
-            <span className="text-[12px] text-ink-2">Leave the last blank if two is enough. Up to five.</span>
-          </div>
-          <SubmitButton pendingLabel="Sending…" className="w-full">Send the poll</SubmitButton>
-        </form>
-      </Disclosure>
-
-      <Disclosure label="Find a date that works for everyone">
+      <Disclosure label="Not sure of the date? Use the scheduling assistant">
         <form action={createDateSearch.bind(null, groupId)} className="flex flex-col gap-3.5">
           <Field label="What is it"><input name="title" required maxLength={60} placeholder="Dinner, sometime soon" /></Field>
           <Field label="Where (optional)"><input name="location" maxLength={60} /></Field>
@@ -62,10 +45,11 @@ export default async function NewEventPage({ params }: { params: Promise<{ group
             <span className="flex-1 min-w-0"><Field label="and"><input name="window_end" type="date" required defaultValue={plusDays(21)} /></Field></span>
           </div>
           <Field label="Notes (optional)"><textarea name="notes" rows={2} /></Field>
-          <SubmitButton pendingLabel="Starting…" className="w-full">Ask the group</SubmitButton>
+          <SubmitButton pendingLabel="Starting…" className="w-full">Open the scheduling assistant</SubmitButton>
           <p className="text-[12px] text-ink-2">
-            Everyone marks the days they can&rsquo;t do — usually three taps — and the clear
-            days surface on their own. You pick one when it&rsquo;s obvious.
+            Everyone gets a grid of the whole window — people down the side, days across —
+            and marks the days they can&rsquo;t do. You can see at a glance who&rsquo;s free
+            when, and settle on a day once it&rsquo;s obvious.
           </p>
         </form>
       </Disclosure>
@@ -93,8 +77,8 @@ export default async function NewEventPage({ params }: { params: Promise<{ group
       </Disclosure>
 
       <Note>
-        A poll never resolves itself. Once people have answered, you or an admin pick the
-        winning time by hand and the event flips to RSVPs.
+        Nothing resolves itself. However you start it, you or an admin settle the time by
+        hand and the event flips to RSVPs.
       </Note>
     </>
   );

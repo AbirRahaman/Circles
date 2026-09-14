@@ -13,8 +13,9 @@ import { BEHAVIOR_LEVELS, levelLabel, levelTone } from "@/lib/behavior";
 import { Card, Pill, Avatar, Note, Field, Disclosure, SectionHead, ProgressBar } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
 import { VoteButtons } from "@/components/VoteButtons";
+import { AvailabilityGrid, type GridDay, type GridPerson } from "@/components/AvailabilityGrid";
 import { RsvpControl } from "@/components/RsvpControl";
-import { fmtDay, fmtTime, fmtFull, fmtRange, isUnderway, effectiveEnd, toInput, plusMinutes, fmtDuration, timeAgo, num } from "@/lib/format";
+import { fmtDay, fmtTime, fmtFull, fmtRange, isUnderway, effectiveEnd, toInput, plusMinutes, fmtDuration, timeAgo, num, colorFor, initials } from "@/lib/format";
 import type { Profile, RsvpResponse, VoteResponse } from "@/lib/types";
 
 type Car = {
@@ -140,6 +141,28 @@ export default async function EventPage({
   const bestCount = windowDays.length
     ? Math.min(...windowDays.map((d) => blockedOn(d).length))
     : 0;
+
+  const gridDays: GridDay[] = windowDays.map((d) => {
+    const at = `${d}T12:00:00Z`;
+    return {
+      key: d,
+      dayNum: String(Number(d.slice(8))),
+      weekday: new Date(at).toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" }).slice(0, 2),
+    };
+  });
+
+  const gridPeople: GridPerson[] = members.map((m) => {
+    const row = avail.find((a) => a.user_id === m.id);
+    return {
+      id: m.id,
+      name: m.name,
+      avatarUrl: m.avatar_url ?? null,
+      color: colorFor(m.id),
+      initials: initials(m.name),
+      busy: row?.unavailable ?? [],
+      answered: !!row,
+    };
+  });
 
   const isTrip = event.kind === "trip";
   const tripItems = (tripRows ?? []) as {
@@ -334,36 +357,28 @@ export default async function EventPage({
         <>
           <Card className="p-3.5 flex flex-col gap-3">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-[12.5px] font-semibold uppercase tracking-[0.06em] text-ink-2">Which days are out for you?</h2>
+              <h2 className="text-[12.5px] font-semibold uppercase tracking-[0.06em] text-ink-2">Scheduling assistant</h2>
               <span className="text-[12.5px] text-ink-3">{avail.length} of {members.length} answered</span>
             </div>
-            <p className="text-[13px] text-ink-2">
-              Tap only the days you <strong>can&rsquo;t</strong> do. Everything you leave alone counts as fine.
-            </p>
 
-            <form action={saveAvailability.bind(null, groupId, eventId)} className="flex flex-col gap-3">
-              <div className="grid grid-cols-7 gap-1">
-                {windowDays.map((d) => {
-                  const mineBlocked = (myAvail?.unavailable ?? []).includes(d);
-                  const others = blockedOn(d).filter((a) => a.user_id !== user.id).length;
-                  return (
-                    <label
-                      key={d}
-                      className="relative flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-md border border-line-strong cursor-pointer text-[11px] has-[:checked]:bg-no-soft has-[:checked]:border-no has-[:checked]:text-no hover:bg-surface-2"
-                    >
-                      <input type="checkbox" name="unavailable" value={d} defaultChecked={mineBlocked} className="sr-only w-0 h-0 p-0 border-0" />
-                      <span className="tabular-nums font-semibold leading-none">{Number(d.slice(8))}</span>
-                      <span className="text-[9px] leading-none text-ink-3">{fmtDay(`${d}T12:00:00Z`).slice(0, 3)}</span>
-                      {others > 0 && <span className="text-[9px] leading-none text-maybe">{others}</span>}
-                    </label>
-                  );
-                })}
-              </div>
-              <Field label="Note (optional)"><input name="note" maxLength={120} defaultValue={myAvail?.note ?? ""} placeholder="Away the first week" /></Field>
-              <SubmitButton className="w-full" pendingLabel="Saving…">
-                {myAvail ? "Update my answer" : "Send my answer"}
-              </SubmitButton>
-            </form>
+            <AvailabilityGrid
+              days={gridDays}
+              people={gridPeople}
+              meId={user.id}
+              action={saveAvailability.bind(null, groupId, eventId)}
+            />
+
+            <Disclosure label="Add a note">
+              <form action={saveAvailability.bind(null, groupId, eventId)} className="flex flex-col gap-3">
+                {(myAvail?.unavailable ?? []).map((d) => (
+                  <input key={d} type="hidden" name="unavailable" value={d} />
+                ))}
+                <Field label="Note for the group">
+                  <input name="note" maxLength={120} defaultValue={myAvail?.note ?? ""} placeholder="Away the first week" />
+                </Field>
+                <SubmitButton className="w-full" pendingLabel="Saving…">Save note</SubmitButton>
+              </form>
+            </Disclosure>
           </Card>
 
           <Card className="p-3.5 flex flex-col gap-3">
