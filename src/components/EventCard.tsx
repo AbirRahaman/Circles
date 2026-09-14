@@ -12,7 +12,7 @@ export type EventCardData = GroupEvent & {
   going: Profile[];
 };
 
-export function EventCard({ groupId, event: e }: { groupId: string; event: EventCardData }) {
+export function EventCard({ groupId, event: e, muted = false }: { groupId: string; event: EventCardData; muted?: boolean }) {
   const underway = isUnderway(e.confirmed_time, e.ends_at);
   const finish = effectiveEnd(e.confirmed_time, e.ends_at);
   const over = finish !== null && finish <= Date.now();
@@ -44,7 +44,12 @@ export function EventCard({ groupId, event: e }: { groupId: string; event: Event
         : "";
 
   return (
-    <Link href={`/g/${groupId}/events/${e.id}`} className="block px-3.5 py-3 border-b border-line last:border-b-0 hover:bg-surface-2">
+    <Link
+      href={`/g/${groupId}/events/${e.id}`}
+      className={muted
+        ? "block px-3.5 py-2.5 rounded-lg bg-surface-2 border border-line hover:bg-surface-3"
+        : "block px-3.5 py-3 border-b border-line last:border-b-0 hover:bg-surface-2"}
+    >
       <div className="flex items-center justify-between gap-3">
         <span className="font-semibold text-[15.5px] truncate">
           {e.kind === "trip" && (
