@@ -14,6 +14,7 @@ import { Card, Pill, Avatar, Note, Field, Disclosure, SectionHead, ProgressBar }
 import { SubmitButton } from "@/components/SubmitButton";
 import { VoteButtons } from "@/components/VoteButtons";
 import { AvailabilityGrid, type GridDay, type GridPerson } from "@/components/AvailabilityGrid";
+import { fetchBusyDays } from "@/lib/busy";
 import { RsvpControl } from "@/components/RsvpControl";
 import { fmtDay, fmtTime, fmtFull, fmtRange, isUnderway, effectiveEnd, toInput, plusMinutes, fmtDuration, timeAgo, num, colorFor, initials } from "@/lib/format";
 import type { Profile, RsvpResponse, VoteResponse } from "@/lib/types";
@@ -159,6 +160,10 @@ export default async function EventPage({
     };
   });
 
+  const committedBy = isSearch && windowDays.length
+    ? await fetchBusyDays(supabase, members.map((m) => m.id), windowDays[0], windowDays[windowDays.length - 1])
+    : new Map<string, Set<string>>();
+
   const gridPeople: GridPerson[] = members.map((m) => {
     const row = avail.find((a) => a.user_id === m.id);
     return {
@@ -168,6 +173,7 @@ export default async function EventPage({
       color: colorFor(m.id),
       initials: initials(m.name),
       busy: row?.unavailable ?? [],
+      committed: [...(committedBy.get(m.id) ?? [])],
       answered: !!row,
     };
   });

@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth";
-import { updateProfile, signOut } from "@/app/actions/profile";
-import { Card, Field, Avatar, Note, SectionHead } from "@/components/ui";
+import { updateProfile, signOut, setShareBusy } from "@/app/actions/profile";
+import { Card, Field, Avatar, Note, SectionHead, Pill } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
 import { TopBar } from "@/components/TopBar";
 import { fmtDay } from "@/lib/format";
@@ -15,7 +15,7 @@ export default async function ProfilePage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, name, email_or_phone, avatar_url, created_at")
+    .select("id, name, email_or_phone, avatar_url, created_at, share_busy")
     .eq("id", user.id)
     .single();
 
@@ -58,6 +58,27 @@ export default async function ProfilePage() {
                 This is the name and face everyone in your groups sees. Clearing the picture
                 link falls back to your initials.
               </p>
+            </form>
+          </Card>
+        </section>
+
+        <section className="flex flex-col gap-2.5">
+          <SectionHead title="Scheduling" />
+          <Card className="p-3.5 flex flex-col gap-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-col gap-1">
+                <span className="font-semibold text-[15px]">Show when you&rsquo;re busy</span>
+                <span className="text-[13px] text-ink-2">
+                  When someone is picking a date, they see that you already have a plan that day —
+                  the day only, never what it is, where, or which group it&rsquo;s with.
+                </span>
+              </div>
+              <Pill tone={profile?.share_busy ? "go" : "plain"}>{profile?.share_busy ? "On" : "Off"}</Pill>
+            </div>
+            <form action={setShareBusy.bind(null, !profile?.share_busy)}>
+              <SubmitButton variant="ghost" className="w-full" pendingLabel="Saving…">
+                {profile?.share_busy ? "Stop sharing my busy days" : "Share my busy days"}
+              </SubmitButton>
             </form>
           </Card>
         </section>

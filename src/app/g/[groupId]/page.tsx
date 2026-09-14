@@ -1,6 +1,6 @@
 import { requireMembership } from "@/lib/auth";
 import { markNudgeSent } from "@/app/actions/albums";
-import { Card, Empty, SectionHead, LinkButton, Pill } from "@/components/ui";
+import { Card, Disclosure, Empty, SectionHead, LinkButton, Pill } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
 import { EventCard, type EventCardData } from "@/components/EventCard";
 import { fmtDay, effectiveEnd } from "@/lib/format";
@@ -55,14 +55,17 @@ export default async function PlansTab({ params }: { params: Promise<{ groupId: 
     };
   });
 
+  // Cancelled is its own bucket — it never happened, so it isn't history.
+  const isCancelled = (e: EventCardData) => e.status === "cancelled";
   const isPast = (e: EventCardData) => {
-    if (e.status === "cancelled") return true;
+    if (isCancelled(e)) return false;
     const finish = effectiveEnd(e.confirmed_time, e.ends_at);
     return finish !== null && finish <= Date.now();
   };
   const sortKey = (e: EventCardData) => e.confirmed_time ?? e.created_at;
 
-  const upcoming = cards.filter((e) => !isPast(e)).sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
+  const cancelled = cards.filter(isCancelled).sort((a, b) => sortKey(b).localeCompare(sortKey(a)));
+  const upcoming = cards.filter((e) => !isPast(e) && !isCancelled(e)).sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
   const past = cards.filter(isPast).sort((a, b) => sortKey(b).localeCompare(sortKey(a)));
 
   // A nudge is due 24h after the event, once, per spec 4.2.
@@ -105,10 +108,20 @@ export default async function PlansTab({ params }: { params: Promise<{ groupId: 
       })}
 
       {past.length > 0 && (
-        <>
-          <SectionHead title="Past" right={<span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3">{past.length}</span>} />
-          <Card>{past.slice(0, 8).map((e) => <EventCard key={e.id} groupId={groupId} event={e} />)}</Card>
-        </>
+        <section className="flex flex-col gap-2">
+          <SectionHead title="Already happened" right={<span className="text-[12.5px] text-ink-3">{past.length}</span>} />
+          <div className="flex flex-col gap-1.5">
+            {past.slice(0, 8).map((e) => <EventCard key={e.id} groupId={groupId} event={e} muted />)}
+          </div>
+        </section>
+      )}
+
+      {cancelled.length > 0 && (
+        <Disclosure label={`Cancelled (${cancelled.length})`}>
+          <div className="flex flex-col gap-1.5">
+            {cancelled.slice(0, 10).map((e) => <EventCard key={e.id} groupId={groupId} event={e} muted />)}
+          </div>
+        </Disclosure>
       )}
     </>
   );

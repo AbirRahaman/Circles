@@ -27,6 +27,15 @@ export async function updateProfile(formData: FormData) {
   revalidatePath("/", "layout");
 }
 
+/** Whether other groups can see that you're busy. Days only, never what. */
+export async function setShareBusy(share: boolean) {
+  const user = await requireUser();
+  const supabase = await createClient();
+  const { error } = await supabase.from("profiles").update({ share_busy: share }).eq("id", user.id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/profile");
+}
+
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();

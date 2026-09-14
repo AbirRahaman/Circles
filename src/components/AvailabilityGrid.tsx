@@ -17,6 +17,8 @@ export type GridPerson = {
   color: string;
   initials: string;
   busy: string[];
+  /** Days they already have something on, from their other Circles plans. */
+  committed: string[];
   answered: boolean;
 };
 
@@ -43,9 +45,12 @@ export function AvailabilityGrid({
 
   const busyOn = (p: GridPerson, day: string) =>
     p.id === meId ? mine.has(day) : p.busy.includes(day);
+  const committedOn = (p: GridPerson, day: string) => p.committed.includes(day);
 
   const answered = people.filter((p) => (p.id === meId ? true : p.answered));
-  const freeCount = (day: string) => answered.filter((p) => !busyOn(p, day)).length;
+  // Someone with a clashing plan isn't free, whether or not they've answered.
+  const freeCount = (day: string) =>
+    answered.filter((p) => !busyOn(p, day) && !committedOn(p, day)).length;
   const bestFree = days.length ? Math.max(...days.map((d) => freeCount(d.key))) : 0;
 
   return (
@@ -92,13 +97,16 @@ export function AvailabilityGrid({
 
                   {people.map((p) => {
                     const busy = busyOn(p, d.key);
-                    const unknown = !p.answered && p.id !== meId;
+                    const clash = !busy && committedOn(p, d.key);
+                    const unknown = !p.answered && p.id !== meId && !clash;
                     const base = "h-9 mx-[1px] mb-[1px] rounded-[3px] border";
-                    const look = unknown
-                      ? "bg-surface-2 border-line"
-                      : busy
-                        ? "bg-no border-no"
-                        : "bg-go-soft border-go-soft";
+                    const look = busy
+                      ? "bg-no border-no"
+                      : clash
+                        ? "bg-maybe-soft border-maybe"
+                        : unknown
+                          ? "bg-surface-2 border-line"
+                          : "bg-go-soft border-go-soft";
                     if (p.id !== meId) return <div key={p.id} className={`${base} ${look}`} />;
                     return (
                       <button
@@ -106,7 +114,7 @@ export function AvailabilityGrid({
                         type="button"
                         onClick={() => toggle(d.key)}
                         aria-pressed={busy}
-                        aria-label={`${d.weekday} ${d.dayNum}: ${busy ? "busy" : "free"}`}
+                        aria-label={`${d.weekday} ${d.dayNum}: ${busy ? "marked busy" : clash ? "already has a plan" : "free"}`}
                         className={`${base} ${look} hover:opacity-80 ring-offset-1 focus-visible:ring-2 focus-visible:ring-accent`}
                       />
                     );
@@ -121,7 +129,8 @@ export function AvailabilityGrid({
       <div className="flex items-center gap-3">
         <span className="flex items-center gap-1.5 text-[11.5px] text-ink-2">
           <span className="w-3 h-3 rounded-[3px] bg-go-soft border border-go-soft" /> free
-          <span className="w-3 h-3 rounded-[3px] bg-no border border-no ml-2" /> busy
+          <span className="w-3 h-3 rounded-[3px] bg-no border border-no ml-2" /> said no
+          <span className="w-3 h-3 rounded-[3px] bg-maybe-soft border border-maybe ml-2" /> has a plan
           <span className="w-3 h-3 rounded-[3px] bg-surface-2 border border-line ml-2" /> no answer
         </span>
       </div>
