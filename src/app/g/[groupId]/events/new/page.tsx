@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { requireMembership } from "@/lib/auth";
+import { requireMembership, getGroup } from "@/lib/auth";
+import { hasFeature } from "@/lib/groupTypes";
 import { createPlan } from "@/app/actions/events";
 import { Card, Field, Note } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -15,6 +16,9 @@ export default async function NewPlanPage({
   const { groupId } = await params;
   const sp = await searchParams;
   const { supabase } = await requireMembership(groupId);
+  const group = await getGroup(groupId);
+  const trips = hasFeature(group.type, "trips");
+  const titleHint = group.type === "professional" ? "Team happy hour" : group.type === "roommates" ? "House dinner" : "Cabin weekend";
 
   const today = groupToday();
   const horizon = addDay(today, 41);
@@ -86,18 +90,22 @@ export default async function NewPlanPage({
       <Card className="p-3.5">
         <form action={createPlan.bind(null, groupId)} className="flex flex-col gap-3.5">
           <Field label="What is it">
-            <input name="title" required maxLength={60} placeholder="Cabin weekend" />
+            <input name="title" required maxLength={60} placeholder={titleHint} />
           </Field>
 
           <div className="flex gap-2.5">
-            <span className="flex-1 min-w-0">
-              <Field label="Kind">
-                <select name="kind" defaultValue="outing">
-                  <option value="outing">An outing</option>
-                  <option value="trip">A trip</option>
-                </select>
-              </Field>
-            </span>
+            {trips ? (
+              <span className="flex-1 min-w-0">
+                <Field label="Kind">
+                  <select name="kind" defaultValue="outing">
+                    <option value="outing">An outing</option>
+                    <option value="trip">A trip</option>
+                  </select>
+                </Field>
+              </span>
+            ) : (
+              <input type="hidden" name="kind" value="outing" />
+            )}
             <span className="flex-1 min-w-0">
               <Field label="Is it settled?">
                 <select name="settled" defaultValue="yes">
@@ -125,9 +133,11 @@ export default async function NewPlanPage({
             <textarea name="notes" rows={3} placeholder="Who's driving, what to bring, why now…" />
           </Field>
 
-          <Field label="Budget per person — trips only (optional)">
-            <input name="budget_per_person" type="number" min="0" step="any" placeholder="250" />
-          </Field>
+          {trips && (
+            <Field label="Budget per person — trips only (optional)">
+              <input name="budget_per_person" type="number" min="0" step="any" placeholder="250" />
+            </Field>
+          )}
 
           <SubmitButton pendingLabel="Saving…" className="w-full">Add it</SubmitButton>
         </form>

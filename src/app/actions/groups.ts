@@ -4,14 +4,17 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth";
+import { asGroupType, GROUP_TYPES, type GroupType } from "@/lib/groupTypes";
 
 export async function createGroup(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   if (!name) throw new Error("Give the group a name.");
 
+  const type = asGroupType(formData.get("type"));
+
   await requireUser();
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("create_group", { p_name: name });
+  const { data, error } = await supabase.rpc("create_group", { p_name: name, p_type: type });
   if (error) throw new Error(error.message);
 
   revalidatePath("/");
@@ -36,6 +39,37 @@ export async function renameGroup(groupId: string, formData: FormData) {
   // RLS: only an admin's update passes the groups_update policy.
   const { error } = await supabase.from("friend_groups").update({ name }).eq("id", groupId);
   if (error) throw new Error(error.message);
+
+  revalidatePath(`/g/${groupId}`, "layout");
+}
+
+export async function setGroupType(groupId: string, formData: FormData) {
+  const raw = formData.get("type");
+  if (!GROUP_TYPES.includes(raw as GroupType)) throw new Error("Pick a group type.");
+
+  const supabase = await createClient();
+  // RLS: only an admin's update passes the groups_update policy.
+  const { data, error } = await supabase
+    .from("friend_groups")
+    .update({ type: raw })
+    .eq("id", groupId)
+    .select("id");
+  if (error) throw new Error(error.message);
+  if (!data?.length) throw new Error("Only admins can change the group type.");
+
+  revalidatePath(`/g/${groupId}`, "layout");
+}
+
+export async function setBehaviorEnabled(groupId: string, enabled: boolean) {
+  const supabase = await createClient();
+  // RLS: only an admin's update passes the groups_update policy.
+  const { data, error } = await supabase
+    .from("friend_groups")
+    .update({ behavior_enabled: enabled })
+    .eq("id", groupId)
+    .select("id");
+  if (error) throw new Error(error.message);
+  if (!data?.length) throw new Error("Only admins can change group features.");
 
   revalidatePath(`/g/${groupId}`, "layout");
 }

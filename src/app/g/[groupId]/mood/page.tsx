@@ -1,4 +1,4 @@
-import { requireMembership } from "@/lib/auth";
+import { requireMembership, requireFeature } from "@/lib/auth";
 import { saveCheckin, clearCheckin } from "@/app/actions/checkins";
 import { Card, Avatar, Field, Note, SectionHead, Pill } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -17,6 +17,7 @@ type Checkin = {
 export default async function MoodTab({ params }: { params: Promise<{ groupId: string }> }) {
   const { groupId } = await params;
   const { supabase, user } = await requireMembership(groupId);
+  await requireFeature(groupId, "checkin");
   const today = groupToday();
 
   const since = new Date(Date.now() - 13 * 86_400_000).toISOString().slice(0, 10);

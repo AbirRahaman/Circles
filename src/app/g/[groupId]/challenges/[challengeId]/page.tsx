@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { requireMembership } from "@/lib/auth";
+import { requireMembership, requireFeature } from "@/lib/auth";
 import { logEntry, updateEntry, deleteEntry } from "@/app/actions/challenges";
 import { Card, Field, Pill, ProgressBar, Avatar } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -11,6 +11,7 @@ export default async function ChallengePage({
 }: { params: Promise<{ groupId: string; challengeId: string }> }) {
   const { groupId, challengeId } = await params;
   const { supabase, user } = await requireMembership(groupId);
+  await requireFeature(groupId, "challenges");
 
   const { data: c } = await supabase.from("challenges").select("*").eq("id", challengeId).maybeSingle();
   if (!c) notFound();

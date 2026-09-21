@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireMembership } from "@/lib/auth";
+import { requireMembership, requireFeature } from "@/lib/auth";
 import { createChallenge } from "@/app/actions/challenges";
 import { Card, Disclosure, Empty, Field, Pill, ProgressBar, SectionHead } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -8,6 +8,7 @@ import { daysUntil, num } from "@/lib/format";
 export default async function ChallengesTab({ params }: { params: Promise<{ groupId: string }> }) {
   const { groupId } = await params;
   const { supabase, user } = await requireMembership(groupId);
+  await requireFeature(groupId, "challenges");
 
   const [{ data: challenges }, { data: memberRows }] = await Promise.all([
     supabase.from("challenges").select("*").eq("group_id", groupId).order("end_date"),

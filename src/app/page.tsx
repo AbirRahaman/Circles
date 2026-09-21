@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { createGroup } from "./actions/groups";
 import { Card, Field, Note } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
+import { GroupTypePicker } from "@/components/GroupTypePicker";
 import { TopBar } from "@/components/TopBar";
 
 /* Nobody wants a lobby. One group means go straight in; several means pick
@@ -53,6 +54,7 @@ export default async function Home() {
             <Field label="Or start one of your own">
               <input name="name" placeholder="Cabin Crew" maxLength={48} required />
             </Field>
+            <GroupTypePicker />
             <SubmitButton pendingLabel="Creating…" className="w-full">Create the group</SubmitButton>
             <p className="text-[12px] text-ink-2">
               You&rsquo;ll be its admin, and you get an invite link to share straight away.

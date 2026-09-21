@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { createGroup } from "@/app/actions/groups";
 import { Card, Disclosure, Empty, Field, Avatar, SectionHead } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
+import { GroupTypePicker } from "@/components/GroupTypePicker";
 import { TopBar } from "@/components/TopBar";
 
 export const metadata = { title: "Your groups · Circles" };
@@ -70,6 +71,7 @@ export default async function GroupsPage() {
         <Disclosure label="Start another group">
           <form action={createGroup} className="flex flex-col gap-3">
             <Field label="Group name"><input name="name" placeholder="Ski trip crew" maxLength={48} required /></Field>
+            <GroupTypePicker />
             <SubmitButton pendingLabel="Creating…" className="w-full">Create the group</SubmitButton>
           </form>
         </Disclosure>

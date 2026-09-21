@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireMembership } from "@/lib/auth";
+import { requireMembership, getGroup } from "@/lib/auth";
 import { TabBar } from "@/components/TabBar";
 import { TopBar } from "@/components/TopBar";
 
@@ -9,8 +9,8 @@ export default async function GroupLayout({
   const { groupId } = await params;
   const { supabase } = await requireMembership(groupId);
 
-  const [{ data: group }, { count }] = await Promise.all([
-    supabase.from("friend_groups").select("name").eq("id", groupId).single(),
+  const [group, { count }] = await Promise.all([
+    getGroup(groupId),
     supabase
       .from("memberships")
       .select("id", { count: "exact", head: true })
@@ -39,7 +39,7 @@ export default async function GroupLayout({
         }
       />
       <main className="flex-1 flex flex-col gap-5 px-3.5 py-4">{children}</main>
-      <TabBar groupId={groupId} />
+      <TabBar groupId={groupId} type={group.type} />
     </div>
   );
 }

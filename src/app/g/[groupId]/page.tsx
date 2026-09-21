@@ -1,4 +1,5 @@
-import { requireMembership } from "@/lib/auth";
+import { requireMembership, getGroup } from "@/lib/auth";
+import { hasFeature } from "@/lib/groupTypes";
 import { markNudgeSent } from "@/app/actions/albums";
 import { Card, Disclosure, Empty, SectionHead, LinkButton, Pill } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -10,10 +11,11 @@ export default async function PlansTab({ params }: { params: Promise<{ groupId: 
   const { groupId } = await params;
   const { supabase, user } = await requireMembership(groupId);
 
-  const [{ data: events }, { data: members }, { data: albums }] = await Promise.all([
+  const [{ data: events }, { data: members }, { data: albums }, group] = await Promise.all([
     supabase.from("events").select("*, event_time_options(id), event_rsvps(user_id, response)").eq("group_id", groupId),
     supabase.from("memberships").select("user_id, profiles(id, name, avatar_url)").eq("group_id", groupId).eq("status", "active"),
     supabase.from("album_links").select("*, events(title, confirmed_time)").eq("group_id", groupId).is("reminder_sent_at", null),
+    getGroup(groupId),
   ]);
 
   const profiles = new Map<string, Profile>(
@@ -69,7 +71,7 @@ export default async function PlansTab({ params }: { params: Promise<{ groupId: 
   const past = cards.filter(isPast).sort((a, b) => sortKey(b).localeCompare(sortKey(a)));
 
   // A nudge is due 24h after the event, once, per spec 4.2.
-  const due = (albums ?? []).filter((a) => {
+  const due = (hasFeature(group.type, "photos") ? albums ?? [] : []).filter((a) => {
     const ev = Array.isArray(a.events) ? a.events[0] : a.events;
     return ev?.confirmed_time && Date.now() - new Date(ev.confirmed_time).getTime() > 24 * 3600_000;
   });

@@ -1,8 +1,9 @@
 import { cache } from "react";
-import { redirect } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getVerifiedUser, type AuthUser } from "@/lib/supabase/verify";
 import type { Membership } from "@/lib/types";
+import { asGroupType, hasFeature, type Feature, type GroupType } from "@/lib/groupTypes";
 
 /* Both of these are wrapped in React's cache(), which memoises per request.
  * A group page renders the layout and the page in the same pass and both
@@ -42,3 +43,23 @@ export const requireMembership = cache(async (groupId: string) => {
   if (!data) redirect("/");
   return { supabase, user, membership: data as Membership, isAdmin: data.role === "admin" };
 });
+
+/** The group row every group screen needs, fetched once per request. */
+export const getGroup = cache(async (groupId: string) => {
+  const { supabase } = await requireMembership(groupId);
+  const { data } = await supabase
+    .from("friend_groups")
+    .select("id, name, created_at, type, behavior_enabled")
+    .eq("id", groupId)
+    .single();
+  if (!data) redirect("/");
+  return { ...data, type: asGroupType(data.type) as GroupType, behavior_enabled: data.behavior_enabled === true };
+});
+
+/** Gate a tab that only some group types have. Old links to a hidden tab
+ *  land on a 404 rather than a half-working page. */
+export async function requireFeature(groupId: string, feature: Feature) {
+  const group = await getGroup(groupId);
+  if (!hasFeature(group.type, feature)) notFound();
+  return group;
+}

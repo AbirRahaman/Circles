@@ -1,4 +1,4 @@
-import { requireMembership } from "@/lib/auth";
+import { requireMembership, requireFeature } from "@/lib/auth";
 import { addAlbumLink } from "@/app/actions/albums";
 import { markNudgeSent } from "@/app/actions/albums";
 import { Card, Empty, Field, Note, Pill, SectionHead } from "@/components/ui";
@@ -8,6 +8,7 @@ import { fmtDay } from "@/lib/format";
 export default async function PhotosTab({ params }: { params: Promise<{ groupId: string }> }) {
   const { groupId } = await params;
   const { supabase } = await requireMembership(groupId);
+  await requireFeature(groupId, "photos");
 
   const [{ data: albums }, { data: events }] = await Promise.all([
     supabase.from("album_links").select("*, events(title, confirmed_time)").eq("group_id", groupId).order("created_at", { ascending: false }),

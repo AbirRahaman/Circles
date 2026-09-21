@@ -1,4 +1,4 @@
-import { requireMembership } from "@/lib/auth";
+import { requireMembership, requireFeature } from "@/lib/auth";
 import { Card, Note, Pill, SectionHead, Avatar, LinkButton } from "@/components/ui";
 import { fetchBalances } from "@/lib/splitwise";
 import { num } from "@/lib/format";
@@ -6,6 +6,7 @@ import { num } from "@/lib/format";
 export default async function MoneyTab({ params }: { params: Promise<{ groupId: string }> }) {
   const { groupId } = await params;
   const { supabase, user, isAdmin } = await requireMembership(groupId);
+  await requireFeature(groupId, "money");
 
   // Never select access_token into a page — it stays server-side in lib/splitwise.
   const { data: link } = await supabase

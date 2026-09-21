@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { requireMembership } from "@/lib/auth";
+import { requireMembership, getGroup } from "@/lib/auth";
+import { hasFeature } from "@/lib/groupTypes";
 import { confirmTime, cancelEvent, updateEvent, confirmPlan, unconfirmPlan, setPlanWindow } from "@/app/actions/events";
 import { addAlbumLink } from "@/app/actions/albums";
 import { addCar, updateCar, removeCar, addPassenger, takeSeat, removePassenger } from "@/app/actions/rides";
@@ -53,6 +54,7 @@ export default async function EventPage({
     { data: tallyRows },
     { data: tallyEntryRows },
     { data: tallyPaxRows },
+    group,
   ] = await Promise.all([
     supabase
       .from("events")
@@ -74,7 +76,12 @@ export default async function EventPage({
     supabase.from("event_tallies").select("id, title, created_by, created_at").eq("event_id", eventId).order("created_at"),
     supabase.from("tally_entries").select("tally_id, user_id, amount"),
     supabase.from("tally_participants").select("tally_id, user_id, opted_out_at"),
+    getGroup(groupId),
   ]);
+  const behaviorEnabled = group.behavior_enabled && hasFeature(group.type, "behavior");
+  const showTallies = hasFeature(group.type, "tallies");
+  const showJokes = hasFeature(group.type, "jokes");
+  const showPhotos = hasFeature(group.type, "photos");
 
   if (!event) notFound();
 
@@ -714,269 +721,283 @@ export default async function EventPage({
             </Disclosure>
           </section>
 
-          {/* ── Tallies ───────────────────────────────────────────────── */}
-          <section className="flex flex-col gap-2.5">
-            <SectionHead
-              title="Tallies"
-              right={tallies.length > 0 ? <span className="text-[12.5px] text-ink-3">{tallies.length}</span> : null}
-            />
+          {showTallies && (
+            <>
+            {/* ── Tallies ───────────────────────────────────────────────── */}
+            <section className="flex flex-col gap-2.5">
+              <SectionHead
+                title="Tallies"
+                right={tallies.length > 0 ? <span className="text-[12.5px] text-ink-3">{tallies.length}</span> : null}
+              />
 
-            {tallies.map((t) => {
-              const rows = tallyEntries.filter((e) => e.tally_id === t.id);
-              const pax = tallyPax.filter((p) => p.tally_id === t.id);
-              const total = rows.reduce((a, e) => a + Number(e.amount), 0);
-              const subtotal = (id: string) =>
-                rows.filter((e) => e.user_id === id).reduce((a, e) => a + Number(e.amount), 0);
+              {tallies.map((t) => {
+                const rows = tallyEntries.filter((e) => e.tally_id === t.id);
+                const pax = tallyPax.filter((p) => p.tally_id === t.id);
+                const total = rows.reduce((a, e) => a + Number(e.amount), 0);
+                const subtotal = (id: string) =>
+                  rows.filter((e) => e.user_id === id).reduce((a, e) => a + Number(e.amount), 0);
 
-              const shown = members.filter(
-                (m) => rows.some((e) => e.user_id === m.id) || pax.some((p) => p.user_id === m.id)
-              );
-              const mine = subtotal(user.id);
-              const iAmOut = !!pax.find((p) => p.user_id === user.id)?.opted_out_at;
+                const shown = members.filter(
+                  (m) => rows.some((e) => e.user_id === m.id) || pax.some((p) => p.user_id === m.id)
+                );
+                const mine = subtotal(user.id);
+                const iAmOut = !!pax.find((p) => p.user_id === user.id)?.opted_out_at;
 
-              return (
-                <Card key={t.id} className="p-3.5 flex flex-col gap-4">
-                  <div className="flex items-end justify-between gap-3">
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-ink-3 truncate">
-                        {t.title}
-                      </span>
-                      <span className="font-mono text-[40px] font-bold leading-none tracking-[-0.03em] tabular-nums">
-                        {num(total)}
-                      </span>
-                    </div>
-                    {(t.created_by === user.id || ownsEvent) && (
-                      <form action={deleteTally.bind(null, groupId, eventId, t.id)}>
-                        <button type="submit" aria-label={`Delete ${t.title}`} className="text-[12.5px] text-ink-3 hover:text-no">
-                          Remove
-                        </button>
-                      </form>
-                    )}
-                  </div>
-
-                  {iAmOut ? (
-                    <div className="flex flex-col gap-2">
-                      <p className="text-[13.5px] text-ink-2">
-                        You&rsquo;re sitting this one out. Your {num(mine)} stays counted.
-                      </p>
-                      <form action={setTallyOptOut.bind(null, groupId, eventId, t.id, false)}>
-                        <SubmitButton variant="ghost" className="w-full" pendingLabel="Joining…">Join back in</SubmitButton>
-                      </form>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-2">
-                      <div className="flex gap-2">
-                        <form action={logTally.bind(null, groupId, eventId, t.id)} className="flex-1">
-                          <SubmitButton className="w-full" pendingLabel="Adding…">+1</SubmitButton>
-                        </form>
-                        {mine > 0 && (
-                          <form action={undoTally.bind(null, groupId, eventId, t.id)}>
-                            <SubmitButton variant="ghost" pendingLabel="Undoing…">Undo</SubmitButton>
-                          </form>
-                        )}
+                return (
+                  <Card key={t.id} className="p-3.5 flex flex-col gap-4">
+                    <div className="flex items-end justify-between gap-3">
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-ink-3 truncate">
+                          {t.title}
+                        </span>
+                        <span className="font-mono text-[40px] font-bold leading-none tracking-[-0.03em] tabular-nums">
+                          {num(total)}
+                        </span>
                       </div>
-                      <div className="flex gap-2 items-center">
-                        <form action={logTally.bind(null, groupId, eventId, t.id)} className="flex gap-2 items-center flex-1">
-                          <input
-                            name="amount"
-                            type="number"
-                            min="0"
-                            step="any"
-                            placeholder="Other amount"
-                            className="flex-1 min-w-0 text-[13.5px] py-1.5"
-                          />
-                          <SubmitButton size="sm" variant="quiet" pendingLabel="Adding…">Add</SubmitButton>
-                        </form>
-                        <form action={setTallyOptOut.bind(null, groupId, eventId, t.id, true)}>
-                          <button type="submit" className="text-[12.5px] text-ink-3 hover:text-ink whitespace-nowrap">
-                            Sit out
+                      {(t.created_by === user.id || ownsEvent) && (
+                        <form action={deleteTally.bind(null, groupId, eventId, t.id)}>
+                          <button type="submit" aria-label={`Delete ${t.title}`} className="text-[12.5px] text-ink-3 hover:text-no">
+                            Remove
                           </button>
                         </form>
+                      )}
+                    </div>
+
+                    {iAmOut ? (
+                      <div className="flex flex-col gap-2">
+                        <p className="text-[13.5px] text-ink-2">
+                          You&rsquo;re sitting this one out. Your {num(mine)} stays counted.
+                        </p>
+                        <form action={setTallyOptOut.bind(null, groupId, eventId, t.id, false)}>
+                          <SubmitButton variant="ghost" className="w-full" pendingLabel="Joining…">Join back in</SubmitButton>
+                        </form>
                       </div>
-                    </div>
-                  )}
-
-                  {shown.length > 0 && (
-                    <div className="flex flex-col">
-                      {shown.map((m) => {
-                        const isOut = !!pax.find((p) => p.user_id === m.id)?.opted_out_at;
-                        return (
-                          <div
-                            key={m.id}
-                            className={`flex items-center gap-2.5 py-2 border-t border-line first:border-t-0 ${isOut ? "opacity-50" : ""}`}
-                          >
-                            <Avatar id={m.id} name={m.name} src={m.avatar_url} size={26} />
-                            <span className={`flex-1 text-[14px] truncate ${m.id === user.id ? "font-semibold" : ""}`}>
-                              {m.name}{m.id === user.id ? " (you)" : ""}
-                              {isOut && <span className="text-ink-3 font-normal"> · sitting out</span>}
-                            </span>
-                            <span className="font-mono text-[15px] tabular-nums">{num(subtotal(m.id))}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </Card>
-              );
-            })}
-
-            <Disclosure label={tallies.length ? "Add another tally" : "Start a tally"}>
-              <form action={createTally.bind(null, groupId, eventId)} className="flex flex-col gap-3">
-                <Field label="What are you counting">
-                  <input name="title" required maxLength={60} />
-                </Field>
-                <SubmitButton className="w-full" pendingLabel="Creating…">Create tally</SubmitButton>
-              </form>
-            </Disclosure>
-          </section>
-
-          {/* ── Conduct ───────────────────────────────────────────────── */}
-          <section className="flex flex-col gap-2.5">
-            <SectionHead
-              title="Behavior"
-              right={<span className="text-[12.5px] text-ink-3">{ratings.length} rated</span>}
-            />
-
-            <Card>
-              {members.map((m) => {
-                const r = ratingFor(m.id);
-                return (
-                  <div key={m.id} className="px-3.5 py-3 border-b border-line last:border-b-0 flex flex-col gap-2">
-                    <div className="flex items-center gap-2.5">
-                      <Avatar id={m.id} name={m.name} src={m.avatar_url} size={28} />
-                      <span className="flex-1 text-[14.5px] truncate">
-                        {m.name}{m.id === user.id ? " (you)" : ""}
-                      </span>
-                      {r
-                        ? <Pill tone={levelTone(r.level)}>{levelLabel(r.level)}</Pill>
-                        : <span className="text-[12.5px] text-ink-3">unrated</span>}
-                    </div>
-
-                    {r?.note && <p className="text-[12.5px] text-ink-2 pl-[38px]">{r.note}</p>}
-
-                    {canRate && (
-                      <form action={setBehavior.bind(null, groupId, eventId, m.id)} className="flex gap-2 items-center pl-[38px]">
-                        <select name="level" defaultValue={r ? String(r.level) : ""} className="flex-1 min-w-0 text-[13.5px] py-1.5">
-                          <option value="">No rating</option>
-                          {BEHAVIOR_LEVELS.map((label, i) => (
-                            <option key={label} value={i + 1}>{i + 1}. {label}</option>
-                          ))}
-                        </select>
-                        <SubmitButton size="sm" variant="quiet" pendingLabel="Saving…">Set</SubmitButton>
-                      </form>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        <div className="flex gap-2">
+                          <form action={logTally.bind(null, groupId, eventId, t.id)} className="flex-1">
+                            <SubmitButton className="w-full" pendingLabel="Adding…">+1</SubmitButton>
+                          </form>
+                          {mine > 0 && (
+                            <form action={undoTally.bind(null, groupId, eventId, t.id)}>
+                              <SubmitButton variant="ghost" pendingLabel="Undoing…">Undo</SubmitButton>
+                            </form>
+                          )}
+                        </div>
+                        <div className="flex gap-2 items-center">
+                          <form action={logTally.bind(null, groupId, eventId, t.id)} className="flex gap-2 items-center flex-1">
+                            <input
+                              name="amount"
+                              type="number"
+                              min="0"
+                              step="any"
+                              placeholder="Other amount"
+                              className="flex-1 min-w-0 text-[13.5px] py-1.5"
+                            />
+                            <SubmitButton size="sm" variant="quiet" pendingLabel="Adding…">Add</SubmitButton>
+                          </form>
+                          <form action={setTallyOptOut.bind(null, groupId, eventId, t.id, true)}>
+                            <button type="submit" className="text-[12.5px] text-ink-3 hover:text-ink whitespace-nowrap">
+                              Sit out
+                            </button>
+                          </form>
+                        </div>
+                      </div>
                     )}
-                  </div>
+
+                    {shown.length > 0 && (
+                      <div className="flex flex-col">
+                        {shown.map((m) => {
+                          const isOut = !!pax.find((p) => p.user_id === m.id)?.opted_out_at;
+                          return (
+                            <div
+                              key={m.id}
+                              className={`flex items-center gap-2.5 py-2 border-t border-line first:border-t-0 ${isOut ? "opacity-50" : ""}`}
+                            >
+                              <Avatar id={m.id} name={m.name} src={m.avatar_url} size={26} />
+                              <span className={`flex-1 text-[14px] truncate ${m.id === user.id ? "font-semibold" : ""}`}>
+                                {m.name}{m.id === user.id ? " (you)" : ""}
+                                {isOut && <span className="text-ink-3 font-normal"> · sitting out</span>}
+                              </span>
+                              <span className="font-mono text-[15px] tabular-nums">{num(subtotal(m.id))}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </Card>
                 );
               })}
-            </Card>
 
-            {!canRate && (
-              <Note>
-                {nameOf(event.created_by)} runs the ratings for this event, along with anyone
-                they&rsquo;ve made a co-host.
-              </Note>
-            )}
-
-            {ownsEvent && (
-              <Disclosure label="Who can rate">
-                <div className="flex flex-col gap-3">
-                  <p className="text-[12.5px] text-ink-2">
-                    You can always rate, as the person who made this event. Co-hosts can rate
-                    too, but can&rsquo;t appoint further co-hosts.
-                  </p>
-
-                  {cohosts.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {cohosts.map((id) => (
-                        <span key={id} className="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1 text-[12px]">
-                          <Avatar id={id} name={nameOf(id)} src={faceOf(id)} size={17} />
-                          {nameOf(id)}
-                          <form action={removeCohost.bind(null, groupId, eventId, id)}>
-                            <button type="submit" aria-label={`Remove ${nameOf(id)} as co-host`} className="text-ink-3 hover:text-no leading-none">×</button>
-                          </form>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {members.filter((m) => m.id !== event.created_by && !cohosts.includes(m.id)).length > 0 && (
-                    <form action={addCohost.bind(null, groupId, eventId)} className="flex gap-2 items-center">
-                      <select name="user_id" defaultValue="" className="flex-1 min-w-0 text-[13.5px] py-1.5">
-                        <option value="" disabled>Add a co-host…</option>
-                        {members
-                          .filter((m) => m.id !== event.created_by && !cohosts.includes(m.id))
-                          .map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-                      </select>
-                      <SubmitButton size="sm" pendingLabel="Adding…">Add</SubmitButton>
-                    </form>
-                  )}
-                </div>
+              <Disclosure label={tallies.length ? "Add another tally" : "Start a tally"}>
+                <form action={createTally.bind(null, groupId, eventId)} className="flex flex-col gap-3">
+                  <Field label="What are you counting">
+                    <input name="title" required maxLength={60} />
+                  </Field>
+                  <SubmitButton className="w-full" pendingLabel="Creating…">Create tally</SubmitButton>
+                </form>
               </Disclosure>
-            )}
-          </section>
+            </section>
+            </>
+          )}
 
-          {/* ── Quote book ────────────────────────────────────────────── */}
-          <section className="flex flex-col gap-2.5">
-            <SectionHead
-              title="Inside jokes"
-              right={jokes.length > 0 ? <span className="text-[12.5px] text-ink-3">{jokes.length}</span> : null}
-            />
+          {behaviorEnabled && (
+            <>
+            {/* ── Conduct ───────────────────────────────────────────────── */}
+            <section className="flex flex-col gap-2.5">
+              <SectionHead
+                title="Behavior"
+                right={<span className="text-[12.5px] text-ink-3">{ratings.length} rated</span>}
+              />
 
-            <Card className="p-3.5">
-              <form action={addJoke.bind(null, groupId, eventId)} className="flex gap-2 items-start">
-                <input
-                  name="text"
-                  required
-                  maxLength={280}
-                  placeholder="Something someone said…"
-                  className="flex-1 min-w-0"
-                />
-                <SubmitButton pendingLabel="Adding…">Add</SubmitButton>
-              </form>
-            </Card>
-
-            {jokes.length > 0 && (
               <Card>
-                {jokes.map((j) => (
-                  <div key={j.id} className="px-3.5 py-3 border-b border-line last:border-b-0 flex items-start gap-3">
-                    <div className="flex-1 min-w-0 flex flex-col gap-1">
-                      <p className="text-[15px] leading-snug">{j.text}</p>
-                      <span className="text-[12px] text-ink-3">
-                        {nameOf(j.user_id)} · {timeAgo(j.created_at)}
-                      </span>
+                {members.map((m) => {
+                  const r = ratingFor(m.id);
+                  return (
+                    <div key={m.id} className="px-3.5 py-3 border-b border-line last:border-b-0 flex flex-col gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <Avatar id={m.id} name={m.name} src={m.avatar_url} size={28} />
+                        <span className="flex-1 text-[14.5px] truncate">
+                          {m.name}{m.id === user.id ? " (you)" : ""}
+                        </span>
+                        {r
+                          ? <Pill tone={levelTone(r.level)}>{levelLabel(r.level)}</Pill>
+                          : <span className="text-[12.5px] text-ink-3">unrated</span>}
+                      </div>
+
+                      {r?.note && <p className="text-[12.5px] text-ink-2 pl-[38px]">{r.note}</p>}
+
+                      {canRate && (
+                        <form action={setBehavior.bind(null, groupId, eventId, m.id)} className="flex gap-2 items-center pl-[38px]">
+                          <select name="level" defaultValue={r ? String(r.level) : ""} className="flex-1 min-w-0 text-[13.5px] py-1.5">
+                            <option value="">No rating</option>
+                            {BEHAVIOR_LEVELS.map((label, i) => (
+                              <option key={label} value={i + 1}>{i + 1}. {label}</option>
+                            ))}
+                          </select>
+                          <SubmitButton size="sm" variant="quiet" pendingLabel="Saving…">Set</SubmitButton>
+                        </form>
+                      )}
                     </div>
-                    {j.user_id === user.id && (
-                      <form action={removeJoke.bind(null, groupId, eventId, j.id)}>
-                        <button
-                          type="submit"
-                          aria-label="Delete this one"
-                          className="text-ink-3 hover:text-no text-[15px] leading-none pt-0.5"
-                        >
-                          ×
-                        </button>
+                  );
+                })}
+              </Card>
+
+              {!canRate && (
+                <Note>
+                  {nameOf(event.created_by)} runs the ratings for this event, along with anyone
+                  they&rsquo;ve made a co-host.
+                </Note>
+              )}
+
+              {ownsEvent && (
+                <Disclosure label="Who can rate">
+                  <div className="flex flex-col gap-3">
+                    <p className="text-[12.5px] text-ink-2">
+                      You can always rate, as the person who made this event. Co-hosts can rate
+                      too, but can&rsquo;t appoint further co-hosts.
+                    </p>
+
+                    {cohosts.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {cohosts.map((id) => (
+                          <span key={id} className="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1 text-[12px]">
+                            <Avatar id={id} name={nameOf(id)} src={faceOf(id)} size={17} />
+                            {nameOf(id)}
+                            <form action={removeCohost.bind(null, groupId, eventId, id)}>
+                              <button type="submit" aria-label={`Remove ${nameOf(id)} as co-host`} className="text-ink-3 hover:text-no leading-none">×</button>
+                            </form>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {members.filter((m) => m.id !== event.created_by && !cohosts.includes(m.id)).length > 0 && (
+                      <form action={addCohost.bind(null, groupId, eventId)} className="flex gap-2 items-center">
+                        <select name="user_id" defaultValue="" className="flex-1 min-w-0 text-[13.5px] py-1.5">
+                          <option value="" disabled>Add a co-host…</option>
+                          {members
+                            .filter((m) => m.id !== event.created_by && !cohosts.includes(m.id))
+                            .map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                        </select>
+                        <SubmitButton size="sm" pendingLabel="Adding…">Add</SubmitButton>
                       </form>
                     )}
                   </div>
-                ))}
-              </Card>
-            )}
-          </section>
+                </Disclosure>
+              )}
+            </section>
+            </>
+          )}
 
-          <Card className="p-3.5 flex flex-col gap-3">
-            <h2 className="text-[12.5px] font-semibold uppercase tracking-[0.06em] text-ink-2">Photos</h2>
-            {(albums ?? []).map((a) => (
-              <a key={a.id} href={a.icloud_share_url} target="_blank" rel="noopener" className="text-[13px] break-all text-accent">
-                {a.icloud_share_url}
-              </a>
-            ))}
-            <form action={addAlbumLink.bind(null, groupId)} className="flex flex-col gap-2.5">
-              <input type="hidden" name="event_id" value={eventId} />
-              <Field label="iCloud album link">
-                <input name="url" type="url" placeholder="https://www.icloud.com/sharedalbum/…" required />
-              </Field>
-              <SubmitButton size="sm" variant="quiet" pendingLabel="Saving…">Save album link</SubmitButton>
-            </form>
-          </Card>
+          {showJokes && (
+            <>
+            {/* ── Quote book ────────────────────────────────────────────── */}
+            <section className="flex flex-col gap-2.5">
+              <SectionHead
+                title="Inside jokes"
+                right={jokes.length > 0 ? <span className="text-[12.5px] text-ink-3">{jokes.length}</span> : null}
+              />
+
+              <Card className="p-3.5">
+                <form action={addJoke.bind(null, groupId, eventId)} className="flex gap-2 items-start">
+                  <input
+                    name="text"
+                    required
+                    maxLength={280}
+                    placeholder="Something someone said…"
+                    className="flex-1 min-w-0"
+                  />
+                  <SubmitButton pendingLabel="Adding…">Add</SubmitButton>
+                </form>
+              </Card>
+
+              {jokes.length > 0 && (
+                <Card>
+                  {jokes.map((j) => (
+                    <div key={j.id} className="px-3.5 py-3 border-b border-line last:border-b-0 flex items-start gap-3">
+                      <div className="flex-1 min-w-0 flex flex-col gap-1">
+                        <p className="text-[15px] leading-snug">{j.text}</p>
+                        <span className="text-[12px] text-ink-3">
+                          {nameOf(j.user_id)} · {timeAgo(j.created_at)}
+                        </span>
+                      </div>
+                      {j.user_id === user.id && (
+                        <form action={removeJoke.bind(null, groupId, eventId, j.id)}>
+                          <button
+                            type="submit"
+                            aria-label="Delete this one"
+                            className="text-ink-3 hover:text-no text-[15px] leading-none pt-0.5"
+                          >
+                            ×
+                          </button>
+                        </form>
+                      )}
+                    </div>
+                  ))}
+                </Card>
+              )}
+            </section>
+            </>
+          )}
+
+          {showPhotos && (
+            <Card className="p-3.5 flex flex-col gap-3">
+              <h2 className="text-[12.5px] font-semibold uppercase tracking-[0.06em] text-ink-2">Photos</h2>
+              {(albums ?? []).map((a) => (
+                <a key={a.id} href={a.icloud_share_url} target="_blank" rel="noopener" className="text-[13px] break-all text-accent">
+                  {a.icloud_share_url}
+                </a>
+              ))}
+              <form action={addAlbumLink.bind(null, groupId)} className="flex flex-col gap-2.5">
+                <input type="hidden" name="event_id" value={eventId} />
+                <Field label="iCloud album link">
+                  <input name="url" type="url" placeholder="https://www.icloud.com/sharedalbum/…" required />
+                </Field>
+                <SubmitButton size="sm" variant="quiet" pendingLabel="Saving…">Save album link</SubmitButton>
+              </form>
+            </Card>
+          )}
         </>
       )}
 
