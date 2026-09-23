@@ -81,12 +81,41 @@ export default async function ChallengePage({
 
       {!closed && (
         <Card className="p-3.5">
-          <form action={logEntry.bind(null, groupId, challengeId)} className="flex flex-col gap-3">
+          <form
+            action={logEntry.bind(null, groupId, challengeId)}
+            className="flex flex-col gap-3"
+          >
             <Field label={`Amount in ${c.unit}`}>
-              <input name="amount" type="number" step="any" min="0" required placeholder="5" />
+              <input
+                name="amount"
+                type="number"
+                step="any"
+                min="0"
+                required
+                placeholder="5"
+              />
             </Field>
-            <Field label="Note (optional)"><input name="note" maxLength={60} placeholder="River loop" /></Field>
-            <SubmitButton className="w-full" pendingLabel="Logging…">Add entry</SubmitButton>
+        
+            <Field label="Date">
+              <input
+                name="entry_date"
+                type="date"
+                defaultValue={new Date().toISOString().split("T")[0]}
+                required
+              />
+            </Field>
+        
+            <Field label="Note (optional)">
+              <input
+                name="note"
+                maxLength={60}
+                placeholder="Add a note"
+              />
+            </Field>
+        
+            <SubmitButton className="w-full" pendingLabel="Logging…">
+              Add entry
+            </SubmitButton>
           </form>
         </Card>
       )}
