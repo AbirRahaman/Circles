@@ -38,18 +38,34 @@ export async function createChallenge(groupId: string, formData: FormData) {
   redirect(`/g/${groupId}/challenges/${data.id}`);
 }
 
-export async function logEntry(groupId: string, challengeId: string, formData: FormData) {
+export async function logEntry(
+  groupId: string,
+  challengeId: string,
+  formData: FormData
+) {
   const amount = Number(formData.get("amount"));
-  if (!amount || Number.isNaN(amount) || amount <= 0) throw new Error("Enter an amount above zero.");
+
+  if (!amount || Number.isNaN(amount) || amount <= 0) {
+    throw new Error("Enter an amount above zero.");
+  }
+
+  const entryDate = String(formData.get("entry_date") ?? "").trim();
+
+  if (!entryDate) {
+    throw new Error("Select a date.");
+  }
 
   const user = await requireUser();
   const supabase = await createClient();
+
   const { error } = await supabase.from("challenge_entries").insert({
     challenge_id: challengeId,
-    user_id: user.id,
+    user_id: user?.id,
     amount,
+    entry_date: entryDate,
     note: String(formData.get("note") ?? "").trim() || null,
   });
+
   if (error) throw new Error(error.message);
 
   revalidatePath(`/g/${groupId}/challenges/${challengeId}`);
@@ -57,18 +73,36 @@ export async function logEntry(groupId: string, challengeId: string, formData: F
 }
 
 export async function updateEntry(
-  groupId: string, challengeId: string, entryId: string, formData: FormData
+  groupId: string,
+  challengeId: string,
+  entryId: string,
+  formData: FormData
 ) {
   const amount = Number(formData.get("amount"));
-  if (!amount || Number.isNaN(amount) || amount <= 0) throw new Error("Enter an amount above zero.");
+
+  if (!amount || Number.isNaN(amount) || amount <= 0) {
+    throw new Error("Enter an amount above zero.");
+  }
+
+  const entryDate = String(formData.get("entry_date") ?? "").trim();
+
+  if (!entryDate) {
+    throw new Error("Select a date.");
+  }
 
   await requireUser();
+
   const supabase = await createClient();
-  // RLS keeps this to your own rows — a forged id updates nothing.
+
   const { error } = await supabase
     .from("challenge_entries")
-    .update({ amount, note: String(formData.get("note") ?? "").trim() || null })
+    .update({
+      amount,
+      entry_date: entryDate,
+      note: String(formData.get("note") ?? "").trim() || null,
+    })
     .eq("id", entryId);
+
   if (error) throw new Error(error.message);
 
   revalidatePath(`/g/${groupId}/challenges/${challengeId}`);
