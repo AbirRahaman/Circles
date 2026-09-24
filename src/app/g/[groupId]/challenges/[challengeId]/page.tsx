@@ -100,7 +100,7 @@ export default async function ChallengePage({
               <input
                 name="entry_date"
                 type="date"
-                defaultValue={new Date().toISOString().split("T")[0]}
+                defaultValue={new Date().toLocaleDateString("en-CA")}
                 required
               />
             </Field>
@@ -143,18 +143,21 @@ export default async function ChallengePage({
                     src={faceOf(e.user_id)}
                     size={24}
                   />
-      
+            
                   <span className="flex flex-col min-w-0">
                     <span className="flex items-center gap-2 min-w-0">
                       <span className="text-[13.5px] truncate">
                         {nameOf(e.user_id)}
                       </span>
-      
+            
                       <span className="text-[11.5px] text-ink-2 shrink-0">
-                        {new Date(e.entry_date).toLocaleDateString()}
+                        {(() => {
+                          const [year, month, day] = e.entry_date.split("-");
+                          return `${month}/${day}/${year}`;
+                        })()}
                       </span>
                     </span>
-      
+            
                     {e.note && (
                       <span className="text-[12px] text-ink-2 truncate">
                         {e.note}
@@ -162,9 +165,33 @@ export default async function ChallengePage({
                     )}
                   </span>
                 </span>
-      
-                <span className="font-mono text-[13.5px] shrink-0">
-                  +{num(Number(e.amount))}
+            
+                <span className="flex items-center gap-2 shrink-0">
+                  {mine && (
+                    <span
+                      className="text-ink-2 group-open:hidden"
+                      aria-label="Edit entry"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M12 20h9" />
+                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                      </svg>
+                    </span>
+                  )}
+            
+                  <span className="font-mono text-[13.5px]">
+                    +{num(Number(e.amount))}
+                  </span>
                 </span>
               </>
             );
@@ -181,51 +208,52 @@ export default async function ChallengePage({
               <details key={e.id} className="group border-b border-line last:border-b-0">
                 <summary className="flex items-center justify-between gap-3 px-3.5 py-2.5 cursor-pointer list-none hover:bg-surface-2 [&::-webkit-details-marker]:hidden">
                   {line}
-                  <span className="text-[12px] text-accent shrink-0 group-open:hidden">Edit</span>
                 </summary>
                 <div className="px-3.5 pb-3 pt-1 flex flex-col gap-2 bg-surface-2">
                 <form
-                    action={updateEntry.bind(null, groupId, challengeId, e.id)}
-                    className="flex gap-2 items-end"
-                  >
-                    <span className="w-24 shrink-0">
-                      <Field label={c.unit}>
-                        <input
-                          name="amount"
-                          type="number"
-                          step="any"
-                          min="0"
-                          required
-                          defaultValue={Number(e.amount)}
-                        />
-                      </Field>
-                    </span>
+                  action={updateEntry.bind(null, groupId, challengeId, e.id)}
+                  className="grid grid-cols-2 sm:flex sm:items-end gap-2"
+                >
+                  <span className="min-w-0">
+                    <Field label={c.unit}>
+                      <input
+                        name="amount"
+                        type="number"
+                        step="any"
+                        min="0"
+                        required
+                        defaultValue={Number(e.amount)}
+                      />
+                    </Field>
+                  </span>
 
-                    <span className="w-36 shrink-0">
-                      <Field label="Date">
-                        <input
-                          name="entry_date"
-                          type="date"
-                          required
-                          defaultValue={e.entry_date}
-                        />
-                      </Field>
-                    </span>
+                  <span className="min-w-0">
+                  <Field label="Date">
+                    <input
+                      name="entry_date"
+                      type="date"
+                      required
+                      defaultValue={e.entry_date}
+                    />
+                  </Field>
+                  </span>
 
-                    <span className="flex-1 min-w-0">
-                      <Field label="Note">
-                        <input
-                          name="note"
-                          maxLength={60}
-                          defaultValue={e.note ?? ""}
-                        />
-                      </Field>
-                    </span>
+                  <span className="col-span-2 min-w-0 sm:flex-1">
+                    <Field label="Note">
+                      <input
+                        name="note"
+                        maxLength={60}
+                        defaultValue={e.note ?? ""}
+                      />
+                    </Field>
+                  </span>
 
+                  <div className="col-span-2 sm:shrink-0">
                     <SubmitButton size="sm" pendingLabel="Saving…">
                       Save
                     </SubmitButton>
-                  </form>
+                  </div>
+                </form>
                   <form action={deleteEntry.bind(null, groupId, challengeId, e.id)}>
                     <SubmitButton size="sm" variant="danger" pendingLabel="Deleting…">Delete this entry</SubmitButton>
                   </form>
