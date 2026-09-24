@@ -109,7 +109,7 @@ export default async function ChallengePage({
               <input
                 name="note"
                 maxLength={60}
-                placeholder="Add a note"
+                placeholder="Add a Note"
               />
             </Field>
         
@@ -125,18 +125,47 @@ export default async function ChallengePage({
           <div className="px-3.5 pt-3.5 pb-1.5">
             <h2 className="text-[12.5px] font-semibold uppercase tracking-[0.06em] text-ink-2">Entries</h2>
           </div>
-          {(entries ?? []).map((e) => {
+          {(entries ?? [])
+            .slice()
+            .sort(
+              (a, b) =>
+                new Date(b.entry_date).getTime() -
+                new Date(a.entry_date).getTime()
+            )
+            .map((e) => {
             const mine = e.user_id === user.id && !closed;
             const line = (
               <>
-                <span className="flex items-center gap-2 min-w-0">
-                  <Avatar id={e.user_id} name={nameOf(e.user_id)} src={faceOf(e.user_id)} size={24} />
+                <span className="flex items-start gap-2 min-w-0">
+                  <Avatar
+                    id={e.user_id}
+                    name={nameOf(e.user_id)}
+                    src={faceOf(e.user_id)}
+                    size={24}
+                  />
+      
                   <span className="flex flex-col min-w-0">
-                    <span className="text-[13.5px] truncate">{nameOf(e.user_id)}</span>
-                    {e.note && <span className="text-[12px] text-ink-2 truncate">{e.note}</span>}
+                    <span className="flex items-center gap-2 min-w-0">
+                      <span className="text-[13.5px] truncate">
+                        {nameOf(e.user_id)}
+                      </span>
+      
+                      <span className="text-[11.5px] text-ink-2 shrink-0">
+                        {new Date(e.entry_date).toLocaleDateString()}
+                      </span>
+                    </span>
+      
+                    {e.note && (
+                      <span className="text-[12px] text-ink-2 truncate">
+                        {e.note}
+                      </span>
+                    )}
                   </span>
                 </span>
-                <span className="font-mono text-[13.5px] shrink-0">+{num(Number(e.amount))}</span>
+      
+                <span className="font-mono text-[13.5px] shrink-0">
+                  +{num(Number(e.amount))}
+                </span>
               </>
             );
 
