@@ -184,16 +184,47 @@ export default async function ChallengePage({
                   <span className="text-[12px] text-accent shrink-0 group-open:hidden">Edit</span>
                 </summary>
                 <div className="px-3.5 pb-3 pt-1 flex flex-col gap-2 bg-surface-2">
-                  <form action={updateEntry.bind(null, groupId, challengeId, e.id)} className="flex gap-2 items-end">
+                <form
+                    action={updateEntry.bind(null, groupId, challengeId, e.id)}
+                    className="flex gap-2 items-end"
+                  >
                     <span className="w-24 shrink-0">
                       <Field label={c.unit}>
-                        <input name="amount" type="number" step="any" min="0" required defaultValue={Number(e.amount)} />
+                        <input
+                          name="amount"
+                          type="number"
+                          step="any"
+                          min="0"
+                          required
+                          defaultValue={Number(e.amount)}
+                        />
                       </Field>
                     </span>
-                    <span className="flex-1 min-w-0">
-                      <Field label="Note"><input name="note" maxLength={60} defaultValue={e.note ?? ""} /></Field>
+
+                    <span className="w-36 shrink-0">
+                      <Field label="Date">
+                        <input
+                          name="entry_date"
+                          type="date"
+                          required
+                          defaultValue={e.entry_date}
+                        />
+                      </Field>
                     </span>
-                    <SubmitButton size="sm" pendingLabel="Saving…">Save</SubmitButton>
+
+                    <span className="flex-1 min-w-0">
+                      <Field label="Note">
+                        <input
+                          name="note"
+                          maxLength={60}
+                          defaultValue={e.note ?? ""}
+                        />
+                      </Field>
+                    </span>
+
+                    <SubmitButton size="sm" pendingLabel="Saving…">
+                      Save
+                    </SubmitButton>
                   </form>
                   <form action={deleteEntry.bind(null, groupId, challengeId, e.id)}>
                     <SubmitButton size="sm" variant="danger" pendingLabel="Deleting…">Delete this entry</SubmitButton>
