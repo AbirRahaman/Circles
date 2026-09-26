@@ -12,6 +12,7 @@ const icons: Record<string, React.ReactNode> = {
   groceries: <><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 8H6.2" /><circle cx="10" cy="20.5" r="1.2" /><circle cx="17" cy="20.5" r="1.2" /></>,
   meals: <><path d="M7 3v8M4.5 3v5a2.5 2.5 0 0 0 5 0V3M7 11v10" /><path d="M17 21V3c-2.2 1.2-3.5 3.6-3.5 7v3H17" /></>,
   chores: <><path d="M9 11l2.5 2.5L16 9" /><rect x="3.5" y="3.5" width="17" height="17" rx="3" /></>,
+  games: <><rect x="3" y="3" width="18" height="18" rx="3.5" /><circle cx="8.5" cy="8.5" r="1.3" /><circle cx="15.5" cy="15.5" r="1.3" /><circle cx="15.5" cy="8.5" r="1.3" /><circle cx="8.5" cy="15.5" r="1.3" /></>,
   mood: <><circle cx="12" cy="12" r="9" /><path d="M9 10h.01M15 10h.01M8.5 14.5a4.5 4.5 0 0 0 7 0" /></>,
 };
 
@@ -28,6 +29,7 @@ export function TabBar({ groupId, type }: { groupId: string; type: GroupType }) 
     { key: "money", label: "Money", href: `${base}/money`, feature: "money" },
     { key: "challenges", label: "Challenges", href: `${base}/challenges`, feature: "challenges" },
     { key: "photos", label: "Photos", href: `${base}/photos`, feature: "photos" },
+    { key: "games", label: "Games", href: `${base}/games`, feature: "games" },
     { key: "mood", label: "Check-in", href: `${base}/mood`, feature: "checkin" },
   ];
   const tabs = all.filter((t) => !t.feature || hasFeature(type, t.feature));

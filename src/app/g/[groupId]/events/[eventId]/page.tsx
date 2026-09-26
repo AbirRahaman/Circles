@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireMembership, getGroup } from "@/lib/auth";
 import { hasFeature } from "@/lib/groupTypes";
@@ -11,7 +12,7 @@ import { saveAvailability } from "@/app/actions/availability";
 import { TRIP_KINDS, kindLabel, money, perPersonEstimate } from "@/lib/trip";
 import { createTally, deleteTally, logTally, undoTally, setTallyOptOut } from "@/app/actions/tallies";
 import { BEHAVIOR_LEVELS, levelLabel, levelTone } from "@/lib/behavior";
-import { Card, Pill, Avatar, Note, Field, Disclosure, SectionHead, ProgressBar } from "@/components/ui";
+import { Card, Pill, Avatar, Note, Field, Disclosure, SectionHead, ProgressBar, LinkButton } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
 import { VoteButtons } from "@/components/VoteButtons";
 import { AvailabilityGrid, type GridDay, type GridPerson } from "@/components/AvailabilityGrid";
@@ -55,6 +56,7 @@ export default async function EventPage({
     { data: tallyEntryRows },
     { data: tallyPaxRows },
     group,
+    { data: gameRows },
   ] = await Promise.all([
     supabase
       .from("events")
@@ -77,11 +79,13 @@ export default async function EventPage({
     supabase.from("tally_entries").select("tally_id, user_id, amount"),
     supabase.from("tally_participants").select("tally_id, user_id, opted_out_at"),
     getGroup(groupId),
+    supabase.from("games").select("id, status, created_at").eq("event_id", eventId).is("deleted_at", null).order("created_at", { ascending: false }),
   ]);
   const behaviorEnabled = group.behavior_enabled && hasFeature(group.type, "behavior");
   const showTallies = hasFeature(group.type, "tallies");
   const showJokes = hasFeature(group.type, "jokes");
   const showPhotos = hasFeature(group.type, "photos");
+  const showGames = hasFeature(group.type, "games");
 
   if (!event) notFound();
 
@@ -928,6 +932,35 @@ export default async function EventPage({
               )}
             </section>
             </>
+          )}
+
+          {showGames && (
+            <section className="flex flex-col gap-2.5">
+              <SectionHead
+                title="Games"
+                right={
+                  <LinkButton href={`/g/${groupId}/games?event=${eventId}`} size="sm" variant="ghost">
+                    Deal a game
+                  </LinkButton>
+                }
+              />
+              {(gameRows ?? []).length > 0 && (
+                <Card>
+                  {(gameRows ?? []).map((g) => (
+                    <Link
+                      key={g.id}
+                      href={`/g/${groupId}/games/${g.id}`}
+                      className="flex items-center gap-3 px-3.5 py-2.5 border-b border-line last:border-b-0 hover:bg-surface-2"
+                    >
+                      <span className="flex-1 text-[13.5px]">Ride the Bus</span>
+                      <span className="font-mono text-[12px] text-ink-3">
+                        {g.status === "active" ? "in progress" : g.status === "finished" ? "finished" : "abandoned"}
+                      </span>
+                    </Link>
+                  ))}
+                </Card>
+              )}
+            </section>
           )}
 
           {showJokes && (
