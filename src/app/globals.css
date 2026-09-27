@@ -2,48 +2,49 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Direction D · quiet, list-driven, web first ─────────────────────
-   Borders carry structure, not shadows. One accent. Everything else
-   is a considered neutral with a slight cool cast. */
+/* ── Redesign · warm serif headings, sage-green accent ───────────────
+   Fraunces for display, Plus Jakarta Sans for body. Sage green accent
+   gives it warmth — feels like friends, not a project manager.
+   Borders carry structure; shadows are subtle depth cues. */
 
 :root {
-  --bg: #F4F4F7;
+  --bg: #F4F5F9;
   --surface: #FFFFFF;
-  --surface-2: #F7F8FA;
-  --surface-3: #ECECF0;
-  --line: #E3E3E8;
-  --line-strong: #D5D5DC;
-  --ink: #15151A;
-  --ink-2: #6C6C75;
-  --ink-3: #A0A0A8;
-  --accent: #35507A;
+  --surface-2: #ECEDF2;
+  --surface-3: #E2E3E9;
+  --line: #E2E4EB;
+  --line-strong: #D3D5DE;
+  --ink: #1A1D2B;
+  --ink-2: #5C6070;
+  --ink-3: #9499A5;
+  --accent: #3D7A5F;
   --accent-ink: #FFFFFF;
-  --accent-soft: #EAEFF7;
-  --go: #2E7D4F; --go-soft: #E7F3EC;
-  --maybe: #B4843C; --maybe-soft: #F7EFE2;
-  --no: #B4483C; --no-soft: #F8E9E7;
-  --shadow: 0 1px 2px rgba(20, 20, 26, 0.04);
+  --accent-soft: #E6F0EB;
+  --go: #2E7D4F; --go-soft: #E2F1E9;
+  --maybe: #B8862A; --maybe-soft: #F4ECDA;
+  --no: #C05252; --no-soft: #F8E9E7;
+  --shadow: 0 1px 3px rgba(26, 29, 43, 0.05);
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #131317;
-    --surface: #1B1B20;
-    --surface-2: #232329;
-    --surface-3: #2C2C33;
-    --line: #2A2A31;
-    --line-strong: #3A3A43;
-    --ink: #F2F2F5;
-    --ink-2: #A6A6B0;
-    --ink-3: #7C7C86;
-    --accent: #8FB0E0;
-    --accent-ink: #10192A;
-    --accent-soft: #1E2A3D;
-    --go: #5FBE86; --go-soft: #16291F;
-    --maybe: #D8A75E; --maybe-soft: #2E2517;
-    --no: #E0806F; --no-soft: #2E1C19;
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --bg: #131318;
+    --surface: #1B1C22;
+    --surface-2: #24252C;
+    --surface-3: #2D2E36;
+    --line: #2C2D38;
+    --line-strong: #3C3D48;
+    --ink: #E4E5EB;
+    --ink-2: #A4A8B4;
+    --ink-3: #7A7E8A;
+    --accent: #5DA882;
+    --accent-ink: #0E1E16;
+    --accent-soft: #1A2E24;
+    --go: #5FBE86; --go-soft: #162A1F;
+    --maybe: #D8A75E; --maybe-soft: #2E2518;
+    --no: #E0807A; --no-soft: #2E1C1A;
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
     color-scheme: dark;
   }
 }

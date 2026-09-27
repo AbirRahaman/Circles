@@ -26,11 +26,11 @@ export default {
         "no-soft": "var(--no-soft)",
       },
       fontFamily: {
-        display: ["var(--font-sans)", "system-ui", "sans-serif"],
+        display: ["var(--font-display)", "Georgia", "serif"],
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],
         mono: ["var(--font-sans)", "system-ui", "sans-serif"],
       },
-      borderRadius: { xl: "10px", lg: "8px", md: "8px" },
+      borderRadius: { xl: "14px", lg: "10px", md: "8px" },
       boxShadow: { card: "var(--shadow)" },
     },
   },

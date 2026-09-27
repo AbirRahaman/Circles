@@ -1,11 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Public_Sans } from "next/font/google";
+import { Plus_Jakarta_Sans, Fraunces } from "next/font/google";
 import "./globals.css";
 
-/* One family everywhere. A system stack would resolve to SF on a Mac and
-   Segoe UI on Windows, so the same app would look like two different apps
-   depending on who opened it. */
-const sans = Public_Sans({ subsets: ["latin"], variable: "--font-sans" });
+/* Body: Plus Jakarta Sans — friendly geometric sans with good readability.
+   Display: Fraunces — optical-size serif that adds warmth to headings.
+   The app feels like it belongs to friends, not a project manager. */
+const sans = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-sans" });
+const display = Fraunces({ subsets: ["latin"], variable: "--font-display" });
 
 export const metadata: Metadata = {
   title: "Circles",
@@ -14,8 +15,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#F4F4F7" },
-    { media: "(prefers-color-scheme: dark)", color: "#131317" },
+    { media: "(prefers-color-scheme: light)", color: "#F4F5F9" },
+    { media: "(prefers-color-scheme: dark)", color: "#131318" },
   ],
   width: "device-width",
   initialScale: 1,
@@ -23,7 +24,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={sans.variable}>
+    <html lang="en" className={`${sans.variable} ${display.variable}`}>
       <body className="font-sans text-[15px] leading-normal">{children}</body>
     </html>
   );
