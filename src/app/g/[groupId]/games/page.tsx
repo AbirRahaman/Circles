@@ -1,15 +1,24 @@
 import Link from "next/link";
 import { requireMembership, requireFeature } from "@/lib/auth";
-import { createGame } from "@/app/actions/games";
-import { Card, Disclosure, Empty, Field, Pill, SectionHead } from "@/components/ui";
-import { SubmitButton } from "@/components/SubmitButton";
+import { Card, Empty, Pill, SectionHead } from "@/components/ui";
+import { GameSelector } from "@/components/games/GameSelector";
 import { fetchMembers } from "@/lib/members";
 import { timeAgo } from "@/lib/format";
 
 export const metadata = { title: "Games · Circles" };
 
-type GameRow = { id: string; status: string; stakes: string; created_at: string; finished_at: string | null; created_by: string; event_id: string | null };
-type ResultRow = { game_id: string; user_id: string; correct: number; given: number; taken: number; rode_bus: boolean };
+const GAME_LABELS: Record<string, string> = {
+  ridethebus: "Ride the Bus",
+  screwyourneighbor: "Screw Your Neighbor",
+};
+
+type GameRow = {
+  id: string; kind: string; status: string; stakes: string;
+  created_at: string; finished_at: string | null; created_by: string; event_id: string | null;
+};
+type ResultRow = {
+  game_id: string; user_id: string; correct: number; given: number; taken: number; rode_bus: boolean;
+};
 
 export default async function GamesTab({
   params, searchParams,
@@ -22,7 +31,7 @@ export default async function GamesTab({
   const [{ data: gameRows }, members] = await Promise.all([
     supabase
       .from("games")
-      .select("id, status, stakes, created_at, finished_at, created_by, event_id")
+      .select("id, kind, status, stakes, created_at, finished_at, created_by, event_id")
       .eq("group_id", groupId)
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
@@ -48,7 +57,6 @@ export default async function GamesTab({
       return {
         m,
         played: mine.length,
-        correct: mine.reduce((a, r) => a + r.correct, 0),
         given: mine.reduce((a, r) => a + r.given, 0),
         taken: mine.reduce((a, r) => a + r.taken, 0),
         rides: mine.filter((r) => r.rode_bus).length,
@@ -61,15 +69,14 @@ export default async function GamesTab({
 
   return (
     <>
-      <SectionHead title="Ride the Bus" right={<span className="text-[12.5px] text-ink-3">{games.length} played</span>} />
-
+      {/* Live games */}
       {live.length > 0 && (
         <Card>
           {live.map((g) => (
             <Link key={g.id} href={`/g/${groupId}/games/${g.id}`}
               className="flex items-center gap-3 px-3.5 py-3 border-b border-line last:border-b-0 hover:bg-surface-2">
               <div className="flex-1 min-w-0">
-                <div className="font-semibold text-[15px]">Game in progress</div>
+                <div className="font-semibold text-[15px]">{GAME_LABELS[g.kind] ?? g.kind}</div>
                 <div className="text-[12.5px] text-ink-2">started by {first(g.created_by)} · {timeAgo(g.created_at)}</div>
               </div>
               <Pill tone="go" dot>Live</Pill>
@@ -78,44 +85,16 @@ export default async function GamesTab({
         </Card>
       )}
 
-      <Disclosure label="Deal a new game">
-        <form action={createGame.bind(null, groupId)} className="flex flex-col gap-3">
-          {event && <input type="hidden" name="event_id" value={event} />}
-          <fieldset className="flex flex-col gap-1.5">
-            <legend className="text-[12.5px] font-semibold text-ink-2 mb-1.5">Who's playing — tap in seat order</legend>
-            {members.map((m) => (
-              <label key={m.id} className="flex items-center gap-2.5 text-[14px] cursor-pointer">
-                <input type="checkbox" name="players" value={m.id} defaultChecked={m.id === user.id} className="!w-4 h-4 accent-[var(--accent)]" />
-                {m.id === user.id ? `${m.name} (you)` : m.name}
-              </label>
-            ))}
-          </fieldset>
-          <div className="flex gap-2.5">
-            <span className="flex-1 min-w-0">
-              <Field label="Dealer">
-                <select name="persona" defaultValue="asshole">
-                  <option value="asshole">Roasts everyone</option>
-                  <option value="grudge">Holds a grudge</option>
-                  <option value="neutral">Plain announcer</option>
-                </select>
-              </Field>
-            </span>
-            <span className="flex-1 min-w-0">
-              <Field label="Counting">
-                <select name="stakes" defaultValue="drinks">
-                  <option value="drinks">Drinks</option>
-                  <option value="points">Points</option>
-                </select>
-              </Field>
-            </span>
-          </div>
-          <SubmitButton className="w-full" pendingLabel="Shuffling…">Start the game</SubmitButton>
-          <p className="text-[12px] text-ink-2">
-            Everyone plays from their own phone. Seat order follows the list above.
-          </p>
-        </form>
-      </Disclosure>
+      {/* Game selector tiles */}
+      <SectionHead title="Pick a game" />
+      <GameSelector
+        groupId={groupId}
+        members={members}
+        userId={user.id}
+        eventId={event ?? null}
+      />
 
+      {/* Leaderboard */}
       {board.length > 0 && (
         <section className="flex flex-col gap-2.5">
           <SectionHead title="All time" right={<span className="text-[12.5px] text-ink-3">{done.length} finished</span>} />
@@ -146,17 +125,22 @@ export default async function GamesTab({
         </section>
       )}
 
+      {/* Past games */}
       {done.length > 0 && (
         <section className="flex flex-col gap-2.5">
           <SectionHead title="Past games" />
           <Card>
             {done.slice(0, 20).map((g) => {
               const rider = results.find((r) => r.game_id === g.id && r.rode_bus);
+              const label = GAME_LABELS[g.kind] ?? g.kind;
               return (
                 <Link key={g.id} href={`/g/${groupId}/games/${g.id}`}
                   className="flex items-center gap-3 px-3.5 py-2.5 border-b border-line last:border-b-0 hover:bg-surface-2">
                   <span className="flex-1 min-w-0 text-[13.5px]">
-                    {rider ? <>{first(rider.user_id)} rode the bus</> : "No rider"}
+                    <span className="font-semibold">{label}</span>
+                    <span className="text-ink-2">
+                      {rider ? <> — {first(rider.user_id)} rode the bus</> : ""}
+                    </span>
                   </span>
                   <span className="font-mono text-[12px] text-ink-3">{timeAgo(g.finished_at ?? g.created_at)}</span>
                 </Link>
@@ -168,7 +152,7 @@ export default async function GamesTab({
 
       {games.length === 0 && (
         <Empty title="No games yet">
-          Ride the Bus: four guesses each, then the pyramid, then somebody rides.
+          Pick a game above and deal it out. Everyone plays from their own phone.
         </Empty>
       )}
     </>

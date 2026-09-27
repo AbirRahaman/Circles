@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { requireMembership, getGroup } from "@/lib/auth";
 import { hasFeature } from "@/lib/groupTypes";
 import { confirmTime, cancelEvent, updateEvent, confirmPlan, unconfirmPlan, setPlanWindow } from "@/app/actions/events";
-import { addAlbumLink } from "@/app/actions/albums";
+import { addAlbumLink, removeAlbumLink } from "@/app/actions/albums";
 import { addCar, updateCar, removeCar, addPassenger, takeSeat, removePassenger } from "@/app/actions/rides";
 import { setBehavior, addCohost, removeCohost } from "@/app/actions/behavior";
 import { addJoke, removeJoke } from "@/app/actions/jokes";
@@ -1016,19 +1016,40 @@ export default async function EventPage({
 
           {showPhotos && (
             <Card className="p-3.5 flex flex-col gap-3">
-              <h2 className="text-[12.5px] font-semibold uppercase tracking-[0.06em] text-ink-2">Photos</h2>
-              {(albums ?? []).map((a) => (
-                <a key={a.id} href={a.icloud_share_url} target="_blank" rel="noopener" className="text-[13px] break-all text-accent">
-                  {a.icloud_share_url}
-                </a>
-              ))}
-              <form action={addAlbumLink.bind(null, groupId)} className="flex flex-col gap-2.5">
-                <input type="hidden" name="event_id" value={eventId} />
-                <Field label="iCloud album link">
-                  <input name="url" type="url" placeholder="https://www.icloud.com/sharedalbum/…" required />
-                </Field>
-                <SubmitButton size="sm" variant="quiet" pendingLabel="Saving…">Save album link</SubmitButton>
-              </form>
+              <h2 className="text-[12.5px] font-semibold uppercase tracking-[0.06em] text-ink-2">Shared album</h2>
+              {(albums ?? []).length > 0 ? (
+                <>
+                  {(albums ?? []).map((a: { id: string; provider?: string; name?: string; icloud_share_url: string; created_by: string }) => {
+                    const provLabel = a.provider === "google" ? "Google Photos" : "Apple Photos";
+                    const displayName = a.name || provLabel;
+                    return (
+                      <div key={a.id} className="flex items-center gap-3 rounded-lg border border-line bg-surface-2 px-3 py-2.5">
+                        <span className="text-[18px] shrink-0" aria-hidden>{a.provider === "google" ? "🟢" : "🍎"}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[14px] font-semibold truncate">{displayName}</div>
+                          <div className="text-[11.5px] text-ink-3 truncate">{provLabel}</div>
+                        </div>
+                        <a
+                          href={a.icloud_share_url}
+                          target="_blank"
+                          rel="noopener"
+                          className="shrink-0 rounded-lg border border-line-strong px-3 py-1.5 text-[13px] font-semibold hover:bg-surface"
+                        >
+                          Open
+                        </a>
+                      </div>
+                    );
+                  })}
+                  {/* Remove button for albums created by this user */}
+                  {(albums ?? []).filter((a: { created_by: string }) => a.created_by === user.id).map((a: { id: string }) => (
+                    <form key={a.id} action={removeAlbumLink.bind(null, groupId, a.id)}>
+                      <SubmitButton size="sm" variant="quiet" pendingLabel="Removing…">Remove album</SubmitButton>
+                    </form>
+                  ))}
+                </>
+              ) : (
+                <AlbumForm groupId={groupId} eventId={eventId} />
+              )}
             </Card>
           )}
         </>
@@ -1047,5 +1068,26 @@ export default async function EventPage({
         </div>
       )}
     </>
+  );
+}
+
+function AlbumForm({ groupId, eventId }: { groupId: string; eventId: string }) {
+  return (
+    <form action={addAlbumLink.bind(null, groupId)} className="flex flex-col gap-2.5">
+      <input type="hidden" name="event_id" value={eventId} />
+      <Field label="Provider">
+        <select name="provider" defaultValue="apple">
+          <option value="apple">Apple Photos</option>
+          <option value="google">Google Photos</option>
+        </select>
+      </Field>
+      <Field label="Album name">
+        <input name="name" type="text" placeholder="Beach trip 2026" />
+      </Field>
+      <Field label="Album link">
+        <input name="url" type="url" placeholder="https://…" required />
+      </Field>
+      <SubmitButton size="sm" variant="quiet" pendingLabel="Saving…">Add shared album</SubmitButton>
+    </form>
   );
 }

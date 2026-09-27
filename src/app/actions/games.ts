@@ -10,6 +10,12 @@ import {
   PYRAMID_ROWS, SUITS, buildAnalysis,
   type Card, type GameEvent, type Guess, type Persona, type Stakes, type Round, type State,
 } from "@/lib/games/ridethebus";
+import {
+  reduceEvents as synReduceEvents,
+  actorFor as synActorFor, traderIndex, targetIndex, findLoser,
+  buildAnalysis as synBuildAnalysis,
+  type SYNEvent, type State as SYNState,
+} from "@/lib/games/screwyourneighbor";
 
 /** Cards are drawn here, on the server, never on a phone: a client that
  *  could compute the next card could guess with it. Full 52 every time,
@@ -22,21 +28,50 @@ const fail = (error: string): Result => ({ ok: false, error });
 type Ctx = {
   user: { id: string };
   supabase: Awaited<ReturnType<typeof createClient>>;
-  game: { id: string; group_id: string; event_id: string | null; status: string; persona: string; stakes: string };
+  game: { id: string; group_id: string; event_id: string | null; kind: string; status: string; persona: string; stakes: string };
   events: GameEvent[];
   state: State;
+};
+
+type SYNCtx = {
+  user: { id: string };
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  game: Ctx["game"];
+  events: SYNEvent[];
+  state: SYNState;
 };
 
 async function load(gameId: string): Promise<Ctx | { error: string }> {
   const user = await requireUser();
   const supabase = await createClient();
   const [{ data: game }, { data: rows }] = await Promise.all([
-    supabase.from("games").select("id, group_id, event_id, status, persona, stakes").eq("id", gameId).maybeSingle(),
+    supabase.from("games").select("id, group_id, event_id, kind, status, persona, stakes").eq("id", gameId).maybeSingle(),
     supabase.from("game_events").select("seq, payload").eq("game_id", gameId).order("seq"),
   ]);
   if (!game) return { error: "That game is gone." };
   const events = (rows ?? []).map((r) => r.payload as GameEvent);
   return { user, supabase, game, events, state: reduceEvents(events) };
+}
+
+async function loadSYN(gameId: string): Promise<SYNCtx | { error: string }> {
+  const user = await requireUser();
+  const supabase = await createClient();
+  const [{ data: game }, { data: rows }] = await Promise.all([
+    supabase.from("games").select("id, group_id, event_id, kind, status, persona, stakes").eq("id", gameId).maybeSingle(),
+    supabase.from("game_events").select("seq, payload").eq("game_id", gameId).order("seq"),
+  ]);
+  if (!game) return { error: "That game is gone." };
+  const events = (rows ?? []).map((r) => r.payload as SYNEvent);
+  return { user, supabase, game, events, state: synReduceEvents(events) };
+}
+
+async function appendSYN(ctx: SYNCtx, events: SYNEvent[]): Promise<Result> {
+  const { error } = await ctx.supabase.from("game_events").insert(
+    events.map((e) => ({ game_id: ctx.game.id, type: e.t, payload: e, actor: ctx.user.id }))
+  );
+  if (error) return fail(error.message.includes("game_over") ? "This game is already over." : error.message);
+  revalidatePath(`/g/${ctx.game.group_id}/games/${ctx.game.id}`);
+  return { ok: true };
 }
 
 async function append(ctx: Ctx, events: GameEvent[]): Promise<Result> {
@@ -51,15 +86,18 @@ async function append(ctx: Ctx, events: GameEvent[]): Promise<Result> {
 /** ── Creating a game ────────────────────────────────────────────────── */
 
 export async function createGame(groupId: string, formData: FormData) {
+  const kind = String(formData.get("kind") ?? "ridethebus");
   const players = formData.getAll("players").map(String).filter(Boolean);
   const persona = String(formData.get("persona") ?? "asshole") as Persona;
   const stakes = String(formData.get("stakes") ?? "drinks") as Stakes;
   const eventId = String(formData.get("event_id") ?? "") || null;
 
-  if (players.length < 2) throw new Error("Pick at least two players.");
+  const minPlayers = kind === "screwyourneighbor" ? 3 : 2;
+  if (players.length < minPlayers) throw new Error(`Pick at least ${minPlayers} players.`);
   if (players.length > 10) throw new Error("Ten players is the limit.");
   if (!["neutral", "grudge", "asshole"].includes(persona)) throw new Error("Unknown dealer.");
   if (!["drinks", "points"].includes(stakes)) throw new Error("Unknown stakes.");
+  if (!["ridethebus", "screwyourneighbor"].includes(kind)) throw new Error("Unknown game.");
 
   const user = await requireUser();
   if (!players.includes(user.id)) throw new Error("You have to be in the game to start it.");
@@ -67,7 +105,7 @@ export async function createGame(groupId: string, formData: FormData) {
   const supabase = await createClient();
   const { data: game, error } = await supabase
     .from("games")
-    .insert({ group_id: groupId, event_id: eventId, persona, stakes, created_by: user.id })
+    .insert({ group_id: groupId, event_id: eventId, kind, persona, stakes, created_by: user.id })
     .select("id")
     .single();
   if (error) throw new Error(error.message);
@@ -77,11 +115,22 @@ export async function createGame(groupId: string, formData: FormData) {
     .insert(players.map((id, seat) => ({ game_id: game.id, user_id: id, seat })));
   if (pErr) throw new Error(pErr.message);
 
-  const created: GameEvent = { t: "created", order: players, persona, stakes, by: user.id };
-  const { error: eErr } = await supabase
-    .from("game_events")
-    .insert({ game_id: game.id, type: created.t, payload: created, actor: user.id });
-  if (eErr) throw new Error(eErr.message);
+  // Initial event(s)
+  if (kind === "screwyourneighbor") {
+    const created: SYNEvent = { t: "created", order: players, persona, stakes, by: user.id };
+    await supabase.from("game_events").insert({ game_id: game.id, type: created.t, payload: created, actor: user.id });
+    // Deal round 1 immediately
+    const cards: Record<string, Card> = {};
+    for (const p of players) cards[p] = draw();
+    const dealt: SYNEvent = { t: "dealt", round: 1, cards, dealer: players.length - 1 };
+    await supabase.from("game_events").insert({ game_id: game.id, type: dealt.t, payload: dealt, actor: user.id });
+  } else {
+    const created: GameEvent = { t: "created", order: players, persona, stakes, by: user.id };
+    const { error: eErr } = await supabase
+      .from("game_events")
+      .insert({ game_id: game.id, type: created.t, payload: created, actor: user.id });
+    if (eErr) throw new Error(eErr.message);
+  }
 
   revalidatePath(`/g/${groupId}/games`);
   redirect(`/g/${groupId}/games/${game.id}`);
@@ -206,6 +255,109 @@ export async function abandonGame(gameId: string): Promise<Result> {
   if (!ctx.state.order.includes(ctx.user.id)) return fail("You're not in this game.");
   await ctx.supabase.from("games").update({ status: "abandoned" }).eq("id", ctx.game.id);
   revalidatePath(`/g/${ctx.game.group_id}/games`);
+  return { ok: true };
+}
+
+/** ── Screw Your Neighbor actions ──────────────────────────────────── */
+
+export async function synKeep(gameId: string): Promise<Result> {
+  const ctx = await loadSYN(gameId);
+  if ("error" in ctx) return fail(ctx.error);
+  const { state, user } = ctx;
+  if (state.phase !== "trading") return fail("Not the trading phase.");
+  if (synActorFor(state) !== user.id) return fail("It isn't your turn.");
+  if (state.kings.includes(user.id)) {
+    // King holders auto-keep, but let the action through for explicitness
+  }
+  return appendSYN(ctx, [{ t: "keep", player: user.id }]);
+}
+
+export async function synTrade(gameId: string): Promise<Result> {
+  const ctx = await loadSYN(gameId);
+  if ("error" in ctx) return fail(ctx.error);
+  const { state, user } = ctx;
+  if (state.phase !== "trading") return fail("Not the trading phase.");
+  if (synActorFor(state) !== user.id) return fail("It isn't your turn.");
+  if (state.kings.includes(user.id)) return fail("You have a King — you can't trade.");
+
+  const tIdx = targetIndex(state);
+  const target = state.order[tIdx];
+  if (state.kings.includes(target)) {
+    // Target has a King → blocked
+    return appendSYN(ctx, [{ t: "blocked", player: user.id, target }]);
+  }
+  return appendSYN(ctx, [{ t: "trade", player: user.id, target }]);
+}
+
+export async function synDealerKeepAction(gameId: string): Promise<Result> {
+  const ctx = await loadSYN(gameId);
+  if ("error" in ctx) return fail(ctx.error);
+  const { state, user } = ctx;
+  if (state.phase !== "dealer") return fail("Not the dealer's turn.");
+  if (state.order[state.dealer] !== user.id) return fail("You're not the dealer.");
+  return appendSYN(ctx, [{ t: "dealerKeep" }]);
+}
+
+export async function synDealerSwapAction(gameId: string): Promise<Result> {
+  const ctx = await loadSYN(gameId);
+  if ("error" in ctx) return fail(ctx.error);
+  const { state, user } = ctx;
+  if (state.phase !== "dealer") return fail("Not the dealer's turn.");
+  if (state.order[state.dealer] !== user.id) return fail("You're not the dealer.");
+  return appendSYN(ctx, [{ t: "dealerSwap", drawn: draw() }]);
+}
+
+export async function synNextRound(gameId: string): Promise<Result> {
+  const ctx = await loadSYN(gameId);
+  if ("error" in ctx) return fail(ctx.error);
+  const { state, user } = ctx;
+  if (state.phase !== "reveal") return fail("Round isn't over yet.");
+  if (!state.order.includes(user.id)) return fail("You're not in this game.");
+
+  const loser = findLoser(state);
+  const newDealer = (state.dealer + 1) % state.order.length;
+  const newRound = state.round + 1;
+  const cards: Record<string, Card> = {};
+  for (const p of state.order) cards[p] = draw();
+
+  return appendSYN(ctx, [{
+    t: "nextRound", loser, round: newRound, cards, dealer: newDealer,
+  }]);
+}
+
+export async function synEndGame(gameId: string): Promise<Result> {
+  const ctx = await loadSYN(gameId);
+  if ("error" in ctx) return fail(ctx.error);
+  const { state, user, supabase, game } = ctx;
+  if (!state.order.includes(user.id)) return fail("You're not in this game.");
+  if (game.status !== "active") return fail("Already filed.");
+
+  // Append endGame event
+  const res = await appendSYN(ctx, [{ t: "endGame", by: user.id }]);
+  if (!res.ok) return res;
+
+  // Re-fold with the endGame event to get final state
+  const finalState = synReduceEvents([...ctx.events, { t: "endGame", by: user.id }]);
+
+  // Write results
+  const rows = finalState.order.map((p) => ({
+    game_id: gameId,
+    user_id: p,
+    correct: 0,
+    given: 0,
+    taken: finalState.scores[p] ?? 0,
+    laid: 0,
+    cards_left: 0,
+    bus_runs: 0,
+    longest_miss: 0,
+    rode_bus: false,
+  }));
+  const { error } = await supabase.from("game_results").insert(rows);
+  if (error && error.code !== "23505") return fail(error.message);
+
+  await supabase.from("games").update({ status: "finished", finished_at: new Date().toISOString() }).eq("id", gameId);
+  revalidatePath(`/g/${game.group_id}/games`);
+  revalidatePath(`/g/${game.group_id}/games/${gameId}`);
   return { ok: true };
 }
 
