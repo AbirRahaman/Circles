@@ -24,19 +24,21 @@ export type Guess = "red" | "black" | "higher" | "lower" | "inside" | "outside" 
 export type Persona = "neutral" | "grudge" | "asshole";
 export type Stakes = "drinks" | "points";
 
-export const PYRAMID_ROWS = [6, 5, 4, 3, 2, 1]; // index 0 = base, drinks = index + 1
+export const PYRAMID_ROWS = [4, 3, 2, 1]; // index 0 = base (4 cards), drinks = index + 1
 
 export type GameEvent =
   | { t: "created"; order: string[]; persona: Persona; stakes: Stakes; by: string }
   | { t: "guess"; player: string; round: Round; guess: Guess; card: Card; correct: boolean; drinks: number }
+  | { t: "setPyramidMaster"; by: string; master: string }
   | { t: "pyramid"; row: number; col: number; card: Card; matches: { player: string; index: number }[]; each: number }
   | { t: "pyramidDone"; by: string }
+  | { t: "setBusDealer"; by: string; dealer: string | "computer" }
   | { t: "tiebreak"; draws: { player: string; card: Card }[]; rider: string | null }
   | { t: "bus"; guess: Guess; card: Card; correct: boolean; reset: boolean; cleared: boolean }
   | { t: "persona"; persona: Persona; by: string }
   | { t: "note"; by: string; text: string };
 
-export type Phase = "r1" | "r2" | "r3" | "r4" | "pyramid" | "tiebreak" | "bus" | "analysis";
+export type Phase = "r1" | "r2" | "r3" | "r4" | "pickPyramidMaster" | "pyramid" | "tiebreak" | "pickBusDealer" | "bus" | "analysis";
 const ROUND_PHASE: Record<Round, Phase> = { 1: "r1", 2: "r2", 3: "r3", 4: "r4" };
 export const phaseRound = (p: Phase): Round | null =>
   p === "r1" ? 1 : p === "r2" ? 2 : p === "r3" ? 3 : p === "r4" ? 4 : null;
@@ -62,9 +64,12 @@ export type State = {
   turn: number;                  // index into order, rounds 1–4 only
   persona: Persona;
   stakes: Stakes;
+  createdBy: string;             // game creator — picks pyramid master & bus dealer
   hands: Record<string, HandCard[]>;
   pyramid: (Card | null)[][];    // [row][col], row 0 = base
   revealed: number;
+  pyramidMaster: string | null;  // who reveals pyramid cards
+  busDealer: string | "computer" | null; // who deals during bus
   rider: string | null;
   tied: string[];                // tie set awaiting a tiebreak draw
   run: { card: Card; correct: boolean }[];
@@ -117,12 +122,24 @@ export function impossible(round: Round, guess: Guess, hand: Card[]): string | n
 
 export const rowValue = (row: number) => row + 1;
 
+/** Next pyramid slot to reveal (bottom-right → top-left, row by row). */
+export function nextPyramidSlot(pyramid: (Card | null)[][]): { row: number; col: number } | null {
+  for (let row = 0; row < pyramid.length; row++) {
+    for (let col = pyramid[row].length - 1; col >= 0; col--) {
+      if (pyramid[row][col] === null) return { row, col };
+    }
+  }
+  return null;
+}
+
 /** ── Fold ───────────────────────────────────────────────────────────── */
 
 export function reduceEvents(events: GameEvent[]): State {
   const s: State = {
     phase: "r1", order: [], turn: 0, persona: "asshole", stakes: "drinks",
+    createdBy: "",
     hands: {}, pyramid: emptyPyramid(), revealed: 0,
+    pyramidMaster: null, busDealer: null,
     rider: null, tied: [], run: [], runsStarted: 0, busDraws: 0,
     stats: {}, log: [], notes: [],
   };
@@ -133,6 +150,7 @@ export function reduceEvents(events: GameEvent[]): State {
         s.order = [...e.order];
         s.persona = e.persona;
         s.stakes = e.stakes;
+        s.createdBy = e.by;
         for (const p of e.order) {
           s.hands[p] = [];
           s.stats[p] = blankStats();
@@ -155,8 +173,13 @@ export function reduceEvents(events: GameEvent[]): State {
         s.turn += 1;
         if (s.turn >= s.order.length) {
           s.turn = 0;
-          s.phase = e.round === 4 ? "pyramid" : ROUND_PHASE[(e.round + 1) as Round];
+          s.phase = e.round === 4 ? "pickPyramidMaster" : ROUND_PHASE[(e.round + 1) as Round];
         }
+        break;
+      }
+      case "setPyramidMaster": {
+        s.pyramidMaster = e.master;
+        s.phase = "pyramid";
         break;
       }
       case "pyramid": {
@@ -179,18 +202,23 @@ export function reduceEvents(events: GameEvent[]): State {
         const top = s.order.filter((p) => s.stats[p].left === most);
         if (top.length === 1) {
           s.rider = top[0];
-          s.phase = "bus";
+          s.phase = "pickBusDealer";
         } else {
           s.tied = top;
           s.phase = "tiebreak";
         }
         break;
       }
+      case "setBusDealer": {
+        s.busDealer = e.dealer;
+        s.phase = "bus";
+        break;
+      }
       case "tiebreak": {
         if (e.rider) {
           s.rider = e.rider;
           s.tied = [];
-          s.phase = "bus";
+          s.phase = "pickBusDealer";
         } else {
           // Another tie: only the players who drew the lowest rank draw again.
           const low = Math.min(...e.draws.map((d) => d.card.r));
@@ -236,8 +264,10 @@ export function reduceEvents(events: GameEvent[]): State {
 /** Whose tap the game is waiting for, or null when anyone may act. */
 export function actorFor(s: State): string | null {
   if (phaseRound(s.phase)) return s.order[s.turn] ?? null;
+  if (s.phase === "pickPyramidMaster" || s.phase === "pickBusDealer") return s.createdBy;
+  if (s.phase === "pyramid") return s.pyramidMaster;
   if (s.phase === "bus") return s.rider;
-  return null; // pyramid and tiebreak are open to the table
+  return null; // tiebreak is open to the table
 }
 
 /** Unplayed cards, used for the rider choice and the pyramid display. */

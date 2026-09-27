@@ -4,12 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import { createClient } from "@/lib/supabase/client";
 import { PlayingCard } from "./PlayingCard";
 import {
-  reduceEvents, actorFor, busStep, busHand, impossible, phaseRound, buildAnalysis, cardName,
-  type GameEvent, type Guess, type Round,
+  reduceEvents, actorFor, busStep, busHand, impossible, phaseRound, buildAnalysis, cardName, nextPyramidSlot,
+  type Card, type GameEvent, type Guess, type Round,
 } from "@/lib/games/ridethebus";
 import { dealerLine, riderLine } from "@/lib/games/dealer";
 import {
   makeGuess, revealSlot, finishPyramid, tiebreakDraw, busGuess, finishGame, abandonGame, setPersona,
+  setPyramidMaster, setBusDealer,
 } from "@/app/actions/games";
 
 type Player = { id: string; name: string; avatar_url: string | null };
@@ -86,6 +87,41 @@ export function RideTheBus({
   const inGame = state.order.includes(me);
   const unit = state.stakes === "drinks" ? "drink" : "point";
 
+  // ── Result flash: shows ✓/✗ after each guess ──
+  const [result, setResult] = useState<{
+    correct: boolean; card: Card; drinks: number; label: string;
+  } | null>(null);
+  const prevLen = useRef(initialRows.length);
+  useEffect(() => {
+    if (rows.length <= prevLen.current) { prevLen.current = rows.length; return; }
+    const latest = rows[rows.length - 1].payload;
+    prevLen.current = rows.length;
+    if (latest.t === "guess") {
+      setResult({
+        correct: latest.correct, card: latest.card, drinks: latest.drinks,
+        label: latest.correct
+          ? `Give ${latest.drinks} ${unit}${latest.drinks === 1 ? "" : "s"}`
+          : `Take ${latest.drinks} ${unit}${latest.drinks === 1 ? "" : "s"}`,
+      });
+    } else if (latest.t === "bus") {
+      setResult({
+        correct: latest.correct, card: latest.card, drinks: 0,
+        label: latest.cleared ? "Off the bus!" : latest.correct ? "Keep going!" : "Back to start!",
+      });
+    } else return;
+    const t = setTimeout(() => setResult(null), 4000);
+    return () => clearTimeout(t);
+  }, [rows, unit]);
+
+  // Per-player correct/incorrect for card badges
+  const correctMap = useMemo(() => {
+    const m: Record<string, boolean[]> = {};
+    for (const e of events) {
+      if (e.t === "guess") (m[e.player] ??= []).push(e.correct);
+    }
+    return m;
+  }, [events]);
+
   const run = useCallback((fn: () => Promise<{ ok: true } | { ok: false; error: string }>) => {
     setError(null);
     setWarn(null);
@@ -112,15 +148,35 @@ export function RideTheBus({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Dealer */}
-      <div className="rounded-xl border border-line bg-surface-2 px-3.5 py-3">
-        <div className="font-mono text-[11px] uppercase tracking-wider text-ink-3 mb-1">Dealer</div>
-        <p className="text-[15px] leading-snug">{line}</p>
-        {state.phase === "bus" && <p className="text-[13px] text-ink-2 mt-1">{riderLine(state, nameOf)}</p>}
-      </div>
+      {/* Dealer — shown at top except during bus phase (moved down there) */}
+      {state.phase !== "bus" && (
+        <div className="rounded-xl border border-line bg-surface-2 px-3.5 py-3">
+          <div className="font-mono text-[11px] uppercase tracking-wider text-ink-3 mb-1">Dealer</div>
+          <p className="text-[15px] leading-snug">{line}</p>
+        </div>
+      )}
 
       {error && <p className="text-[13.5px] text-no border border-no-soft bg-no-soft rounded-lg px-3 py-2">{error}</p>}
       {warn && <p className="text-[13.5px] text-maybe border border-maybe-soft bg-maybe-soft rounded-lg px-3 py-2">{warn} Tap the same button again to go ahead.</p>}
+
+      {/* Result flash */}
+      {result && (
+        <div className={`flex items-center gap-3 rounded-xl px-3.5 py-3 ${
+          result.correct
+            ? "bg-go-soft border border-go/20"
+            : "bg-no-soft border border-no/20"
+        }`}>
+          <PlayingCard card={result.card} size="sm" />
+          <div className="flex flex-col gap-0.5">
+            <span className={`text-[18px] font-bold leading-none ${result.correct ? "text-go" : "text-no"}`}>
+              {result.correct ? "✓ Correct" : "✗ Wrong"}
+            </span>
+            <span className={`text-[13px] leading-none ${result.correct ? "text-go/70" : "text-no/70"}`}>
+              {result.label}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Hands */}
       <div className="flex flex-col gap-2">
@@ -137,7 +193,18 @@ export function RideTheBus({
               </div>
               <div className="flex gap-1.5 flex-wrap">
                 {hand.length === 0 && <span className="text-[12.5px] text-ink-3">no cards yet</span>}
-                {hand.map((h, i) => <PlayingCard key={i} card={h.card} size="sm" dim={h.played} />)}
+                {hand.map((h, i) => (
+                  <div key={i} className="relative">
+                    <PlayingCard card={h.card} size="sm" dim={h.played} />
+                    {correctMap[p]?.[i] !== undefined && (
+                      <span className={`absolute -top-1 -right-1 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center text-white shadow-sm ${
+                        correctMap[p][i] ? "bg-go" : "bg-no"
+                      }`}>
+                        {correctMap[p][i] ? "✓" : "✗"}
+                      </span>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           );
@@ -173,42 +240,92 @@ export function RideTheBus({
         </div>
       )}
 
-      {/* Pyramid */}
-      {state.phase === "pyramid" && (
-        <div className="flex flex-col gap-3">
-          <div className="flex items-baseline justify-between">
-            <h2 className="font-display font-bold text-[16px]">Pyramid</h2>
-            <span className="text-[12.5px] text-ink-3">{state.revealed} flipped</span>
-          </div>
-          <p className="text-[13.5px] text-ink-2">
-            Tap any slot — even one already turned over. Row 1 pays 1, the top pays 6.
-          </p>
-          <div className="flex flex-col-reverse items-center gap-1.5">
-            {state.pyramid.map((cards, row) => (
-              <div key={row} className="flex gap-1.5">
-                {cards.map((card, col) => (
+      {/* Pick pyramid master */}
+      {state.phase === "pickPyramidMaster" && (
+        <div className="flex flex-col gap-2.5">
+          <h2 className="font-display font-bold text-[16px]">Pyramid time</h2>
+          {me === state.createdBy ? (
+            <>
+              <p className="text-[14px] text-ink-2">Pick who reveals the pyramid cards and runs this round.</p>
+              <div className="flex flex-col gap-2">
+                {state.order.map((p) => (
                   <button
-                    key={col}
-                    onClick={() => run(() => revealSlot(gameId, row, col))}
-                    disabled={pending || !inGame}
-                    className="rounded-md disabled:opacity-60 focus:outline-none focus-visible:ring-2 ring-accent"
-                    aria-label={`Row ${row + 1}, slot ${col + 1}`}
+                    key={p}
+                    onClick={() => run(() => setPyramidMaster(gameId, p))}
+                    disabled={pending}
+                    className="rounded-xl border border-line-strong bg-surface px-3 py-3 text-[15px] font-semibold text-left hover:bg-surface-2 disabled:opacity-45"
                   >
-                    <PlayingCard card={card} size="sm" />
+                    {p === me ? "You" : first(p)}
                   </button>
                 ))}
               </div>
-            ))}
-          </div>
-          <button
-            onClick={() => run(() => finishPyramid(gameId))}
-            disabled={pending || !inGame}
-            className="rounded-xl border border-line-strong bg-surface px-3 py-3 font-semibold hover:bg-surface-2 disabled:opacity-45"
-          >
-            Finish pyramid
-          </button>
+            </>
+          ) : (
+            <p className="text-[14px] text-ink-2">Waiting for {first(state.createdBy)} to pick who runs the pyramid.</p>
+          )}
         </div>
       )}
+
+      {/* Pyramid */}
+      {state.phase === "pyramid" && (() => {
+        const nextSlot = nextPyramidSlot(state.pyramid);
+        const isMaster = state.pyramidMaster === me;
+        const totalSlots = state.pyramid.reduce((n, r) => n + r.length, 0);
+        return (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-baseline justify-between">
+              <h2 className="font-display font-bold text-[16px]">Pyramid</h2>
+              <span className="text-[12.5px] text-ink-3">
+                {state.revealed}/{totalSlots} flipped
+                {state.pyramidMaster && ` · ${isMaster ? "You" : first(state.pyramidMaster)} revealing`}
+              </span>
+            </div>
+            <div className="flex flex-col-reverse items-center gap-1.5">
+              {state.pyramid.map((cards, row) => (
+                <div key={row} className="flex gap-1.5">
+                  {cards.map((card, col) => {
+                    const isNext = nextSlot?.row === row && nextSlot?.col === col;
+                    return (
+                      <div
+                        key={col}
+                        className={`rounded-md ${isNext ? "ring-2 ring-accent ring-offset-1" : ""}`}
+                      >
+                        <PlayingCard card={card} size="sm" />
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+            <div className="text-[12.5px] text-ink-3 text-center">
+              Row 1 = 1 {unit}, row {state.pyramid.length} = {state.pyramid.length}
+            </div>
+            {isMaster && nextSlot && (
+              <button
+                onClick={() => run(() => revealSlot(gameId))}
+                disabled={pending}
+                className="rounded-xl bg-accent text-accent-ink px-3 py-3 font-semibold disabled:opacity-45"
+              >
+                Reveal next card
+              </button>
+            )}
+            {isMaster && !nextSlot && (
+              <button
+                onClick={() => run(() => finishPyramid(gameId))}
+                disabled={pending}
+                className="rounded-xl border border-line-strong bg-surface px-3 py-3 font-semibold hover:bg-surface-2 disabled:opacity-45"
+              >
+                Finish pyramid
+              </button>
+            )}
+            {!isMaster && state.pyramidMaster && (
+              <p className="text-[14px] text-ink-2 text-center">
+                {first(state.pyramidMaster)} is revealing cards.
+              </p>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Tiebreak */}
       {state.phase === "tiebreak" && (
@@ -225,41 +342,83 @@ export function RideTheBus({
         </div>
       )}
 
-      {/* Bus */}
-      {state.phase === "bus" && (
-        <div className="flex flex-col gap-3">
-          <div className="flex items-baseline justify-between">
-            <h2 className="font-display font-bold text-[16px]">{first(state.rider ?? "")} is riding</h2>
-            <span className="font-mono text-[12px] text-ink-3">run {state.runsStarted + 1} · {state.busDraws} cards</span>
-          </div>
-          <div className="flex gap-1.5 items-center">
-            {[0, 1, 2, 3].map((i) => (
-              <span key={i} className="flex items-center gap-1.5">
-                <PlayingCard card={state.run[i]?.card ?? null} size="md" />
-                {i < 3 && <span className="text-ink-3">→</span>}
-              </span>
-            ))}
-          </div>
-          {state.rider === me ? (
+      {/* Pick bus dealer */}
+      {state.phase === "pickBusDealer" && (
+        <div className="flex flex-col gap-2.5">
+          <h2 className="font-display font-bold text-[16px]">{first(state.rider ?? "")} rides the bus</h2>
+          {me === state.createdBy ? (
             <>
-              <p className="text-[14px] text-ink-2">{ROUND_ASK[busStep(state)]}</p>
-              <div className="grid grid-cols-2 gap-2">
-                {GUESSES[busStep(state)].map((g) => (
+              <p className="text-[14px] text-ink-2">Pick who deals the cards to {first(state.rider ?? "")}.</p>
+              <div className="flex flex-col gap-2">
+                {state.order.filter((p) => p !== state.rider).map((p) => (
                   <button
-                    key={g.value}
-                    onClick={() => busTap(g.value)}
+                    key={p}
+                    onClick={() => run(() => setBusDealer(gameId, p))}
                     disabled={pending}
-                    className="rounded-xl border border-line-strong bg-surface px-3 py-4 text-[16px] font-semibold hover:bg-surface-2 disabled:opacity-45"
+                    className="rounded-xl border border-line-strong bg-surface px-3 py-3 text-[15px] font-semibold text-left hover:bg-surface-2 disabled:opacity-45"
                   >
-                    {g.label}
+                    {p === me ? "You" : first(p)}
                   </button>
                 ))}
+                <button
+                  onClick={() => run(() => setBusDealer(gameId, "computer"))}
+                  disabled={pending}
+                  className="rounded-xl border border-line-strong bg-surface px-3 py-3 text-[15px] font-semibold text-left hover:bg-surface-2 disabled:opacity-45"
+                >
+                  Computer
+                </button>
               </div>
             </>
           ) : (
-            <p className="text-[14px] text-ink-2">Only {first(state.rider ?? "")} taps now.</p>
+            <p className="text-[14px] text-ink-2">Waiting for {first(state.createdBy)} to pick who deals.</p>
           )}
         </div>
+      )}
+
+      {/* Bus — dealer box moved right above this section */}
+      {state.phase === "bus" && (
+        <>
+          <div className="rounded-xl border border-line bg-surface-2 px-3.5 py-3">
+            <div className="font-mono text-[11px] uppercase tracking-wider text-ink-3 mb-1">
+              Dealer{state.busDealer ? ` · ${state.busDealer === "computer" ? "Computer" : state.busDealer === me ? "You" : first(state.busDealer)}` : ""}
+            </div>
+            <p className="text-[15px] leading-snug">{line}</p>
+            <p className="text-[13px] text-ink-2 mt-1">{riderLine(state, nameOf)}</p>
+          </div>
+          <div className="flex flex-col gap-3">
+            <div className="flex items-baseline justify-between">
+              <h2 className="font-display font-bold text-[16px]">{first(state.rider ?? "")} is riding</h2>
+              <span className="font-mono text-[12px] text-ink-3">run {state.runsStarted + 1} · {state.busDraws} cards</span>
+            </div>
+            <div className="flex gap-1.5 items-center">
+              {[0, 1, 2, 3].map((i) => (
+                <span key={i} className="flex items-center gap-1.5">
+                  <PlayingCard card={state.run[i]?.card ?? null} size="md" />
+                  {i < 3 && <span className="text-ink-3">→</span>}
+                </span>
+              ))}
+            </div>
+            {state.rider === me ? (
+              <>
+                <p className="text-[14px] text-ink-2">{ROUND_ASK[busStep(state)]}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {GUESSES[busStep(state)].map((g) => (
+                    <button
+                      key={g.value}
+                      onClick={() => busTap(g.value)}
+                      disabled={pending}
+                      className="rounded-xl border border-line-strong bg-surface px-3 py-4 text-[16px] font-semibold hover:bg-surface-2 disabled:opacity-45"
+                    >
+                      {g.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="text-[14px] text-ink-2">Only {first(state.rider ?? "")} taps now.</p>
+            )}
+          </div>
+        </>
       )}
 
       {/* Analysis */}
@@ -270,8 +429,25 @@ export function RideTheBus({
         <summary className="px-3.5 py-2.5 cursor-pointer text-[13.5px] font-semibold list-none">
           Hand history ({events.length})
         </summary>
-        <ol className="border-t border-line px-3.5 py-2 flex flex-col-reverse gap-1 max-h-64 overflow-auto">
-          {events.map((e, i) => <li key={i} className="text-[12.5px] text-ink-2">{describe(e, first)}</li>)}
+        <ol className="border-t border-line px-3.5 py-2 flex flex-col-reverse gap-1.5 max-h-64 overflow-auto">
+          {events.map((e, i) => {
+            const isResult = e.t === "guess" || e.t === "bus";
+            const correct = isResult ? (e as { correct: boolean }).correct : null;
+            return (
+              <li key={i} className="flex items-start gap-2 text-[12.5px] text-ink-2">
+                {correct !== null ? (
+                  <span className={`inline-flex items-center justify-center w-[18px] h-[18px] rounded-full text-[10px] font-bold shrink-0 mt-px ${
+                    correct ? "bg-go-soft text-go" : "bg-no-soft text-no"
+                  }`}>
+                    {correct ? "✓" : "✗"}
+                  </span>
+                ) : (
+                  <span className="w-[18px] shrink-0" />
+                )}
+                <span>{describe(e, first)}</span>
+              </li>
+            );
+          })}
         </ol>
       </details>
 
@@ -349,11 +525,13 @@ function Recap({ state, nameOf, me, unit }: { state: ReturnType<typeof reduceEve
 function describe(e: GameEvent, first: (id: string) => string): string {
   switch (e.t) {
     case "created": return `Game on: ${e.order.map(first).join(", ")}.`;
-    case "guess": return `R${e.round} ${first(e.player)} said ${e.guess} → ${cardName(e.card)} ${e.correct ? `✓ gives ${e.drinks}` : `✗ takes ${e.drinks}`}`;
+    case "guess": return `R${e.round} ${first(e.player)} said ${e.guess} → ${cardName(e.card)} · ${e.correct ? `give ${e.drinks}` : `take ${e.drinks}`}`;
+    case "setPyramidMaster": return `${first(e.by)} picked ${first(e.master)} to run the pyramid.`;
     case "pyramid": return `Row ${e.row + 1}: ${cardName(e.card)}${e.matches.length ? ` — ${e.matches.map((m) => first(m.player)).join(", ")} lay down, ${e.each} each` : " — no match"}`;
     case "pyramidDone": return "Pyramid finished.";
+    case "setBusDealer": return `${first(e.by)} picked ${e.dealer === "computer" ? "Computer" : first(e.dealer)} to deal the bus.`;
     case "tiebreak": return `Tiebreak: ${e.draws.map((d) => `${first(d.player)} ${cardName(d.card)}`).join(", ")}${e.rider ? ` → ${first(e.rider)} rides` : " → tied again"}`;
-    case "bus": return `Bus: ${e.guess} → ${cardName(e.card)} ${e.correct ? "✓" : "✗ reset"}${e.cleared ? " — off the bus" : ""}`;
+    case "bus": return `Bus: ${e.guess} → ${cardName(e.card)}${!e.correct ? " · reset" : ""}${e.cleared ? " · off the bus!" : ""}`;
     case "persona": return `Dealer switched to ${e.persona}.`;
     case "note": return `${first(e.by)}: ${e.text}`;
     default: return "";

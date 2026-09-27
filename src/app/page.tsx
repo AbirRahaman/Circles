@@ -38,6 +38,7 @@ export default async function Home() {
       <main className="flex-1 flex flex-col justify-center gap-5 px-3.5 py-6">
         <div className="flex flex-col gap-2 px-0.5">
           <h1 className="text-2xl font-bold tracking-[-0.025em]">You&rsquo;re not in a group yet</h1>
+          <p className="text-[15px] font-medium text-ink-2 italic">Where things make it out the group chat.</p>
           <p className="text-[14px] text-ink-2 leading-relaxed">
             Circles is private by invitation. Groups don&rsquo;t appear in search and can&rsquo;t be
             browsed — someone already inside sends you a link, and following it puts you in.

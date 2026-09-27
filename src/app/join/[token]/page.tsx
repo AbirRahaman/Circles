@@ -31,6 +31,7 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
           <h1 className="font-display font-extrabold text-xl">
             {groupName ? `Join ${groupName}` : "Join this group"}
           </h1>
+          <p className="text-[13.5px] font-medium text-ink-2 italic">Where things make it out the group chat.</p>
           <p className="text-[13.5px] text-ink-2">
             You will show up in the group’s member list and can vote on plans, RSVP, log
             challenge progress and see balances.
