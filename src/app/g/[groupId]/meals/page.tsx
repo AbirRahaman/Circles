@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireMembership, requireFeature } from "@/lib/auth";
-import { addMeal, removeMeal, setMealCook } from "@/app/actions/home";
+import { addMeal, editMeal, removeMeal, setMealCook } from "@/app/actions/home";
 import { Card, Disclosure, Field, Pill, SectionHead } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
 import { fetchMembers } from "@/lib/members";
@@ -116,30 +116,142 @@ export default async function MealsTab({
                     <div key={m.id} className="flex items-start gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="text-[14.5px] font-medium">
-                          <span className="text-[11.5px] font-mono uppercase tracking-wider text-ink-3 mr-1.5">{SLOT_LABEL[m.slot]}</span>
+                          <span className="text-[11.5px] font-mono uppercase tracking-wider text-ink-3 mr-1.5">
+                            {SLOT_LABEL[m.slot]}
+                          </span>
                           {m.title}
                         </div>
+
                         <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
                           {m.cook_id ? (
                             <Pill tone={m.cook_id === user.id ? "accent" : undefined}>
-                              {m.cook_id === user.id ? "You're cooking" : `${names.get(m.cook_id) ?? "Someone"} cooks`}
+                              {m.cook_id === user.id
+                                ? "You're cooking"
+                                : `${names.get(m.cook_id) ?? "Someone"} cooks`}
                             </Pill>
                           ) : (
                             <form action={setMealCook.bind(null, groupId, m.id, user.id)}>
-                              <button type="submit" className="text-[12.5px] font-semibold text-accent hover:underline">I&rsquo;ll cook</button>
+                              <button
+                                type="submit"
+                                className="text-[12.5px] font-semibold text-accent hover:underline"
+                              >
+                                I&rsquo;ll cook
+                              </button>
                             </form>
                           )}
+
                           {m.cook_id === user.id && (
                             <form action={setMealCook.bind(null, groupId, m.id, null)}>
-                              <button type="submit" className="text-[12px] text-ink-3 hover:text-ink">Step back</button>
+                              <button
+                                type="submit"
+                                className="text-[12px] text-ink-3 hover:text-ink"
+                              >
+                                Step back
+                              </button>
                             </form>
                           )}
-                          {m.note && <span className="text-[12.5px] text-ink-2">{m.note}</span>}
+
+                          {m.note && (
+                            <span className="text-[12.5px] text-ink-2">
+                              {m.note}
+                            </span>
+                          )}
                         </div>
+
+                        {/* Edit form */}
+                        <details className="mt-2">
+                          <summary className="cursor-pointer text-[12px] font-semibold text-accent hover:underline">
+                            Edit
+                          </summary>
+
+                          <form
+                            action={editMeal.bind(null, groupId, m.id)}
+                            className="mt-2 flex flex-col gap-2.5 rounded-lg bg-surface-2 p-3"
+                          >
+                            <Field label="What">
+                              <input
+                                name="title"
+                                required
+                                maxLength={80}
+                                defaultValue={m.title}
+                              />
+                            </Field>
+
+                            <div className="flex gap-2.5">
+                              <span className="flex-1 min-w-0">
+                                <Field label="Day">
+                                  <select name="day" defaultValue={m.day}>
+                                    {days.map((d) => (
+                                      <option key={d} value={d}>
+                                        {weekdayShort(d)} {fmtDate(d)}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </Field>
+                              </span>
+
+                              <span className="flex-1 min-w-0">
+                                <Field label="Meal">
+                                  <select name="slot" defaultValue={m.slot}>
+                                    {SLOTS.map((s) => (
+                                      <option key={s} value={s}>
+                                        {SLOT_LABEL[s]}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </Field>
+                              </span>
+                            </div>
+
+                            <Field label="Who's cooking">
+                              <select name="cook_id" defaultValue={m.cook_id ?? ""}>
+                                <option value="">Nobody yet</option>
+                                {members.map((member) => (
+                                  <option key={member.id} value={member.id}>
+                                    {member.id === user.id
+                                      ? `${member.name} (you)`
+                                      : member.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </Field>
+
+                            <Field label="Note (optional)">
+                              <input
+                                name="note"
+                                maxLength={200}
+                                defaultValue={m.note ?? ""}
+                                placeholder="Vegetarian option for Sam"
+                              />
+                            </Field>
+
+                            <SubmitButton
+                              className="w-full"
+                              pendingLabel="Saving…"
+                            >
+                              Save changes
+                            </SubmitButton>
+                          </form>
+                        </details>
                       </div>
+
                       <form action={removeMeal.bind(null, groupId, m.id)}>
-                        <button type="submit" aria-label={`Remove ${m.title}`} className="w-7 h-7 grid place-items-center rounded-md text-ink-3 hover:bg-surface-2 hover:text-ink">
-                          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+                        <button
+                          type="submit"
+                          aria-label={`Remove ${m.title}`}
+                          className="w-7 h-7 grid place-items-center rounded-md text-ink-3 hover:bg-surface-2 hover:text-ink"
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            width="14"
+                            height="14"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.2"
+                            strokeLinecap="round"
+                          >
+                            <path d="M6 6l12 12M18 6L6 18" />
+                          </svg>
                         </button>
                       </form>
                     </div>

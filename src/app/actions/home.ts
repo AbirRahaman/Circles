@@ -123,6 +123,36 @@ export async function removeMeal(groupId: string, mealId: string) {
   revalidatePath(`/g/${groupId}/meals`);
 }
 
+export async function editMeal(groupId: string, mealId: string, formData: FormData) {
+  const day = str(formData.get("day"));
+  const slot = str(formData.get("slot")) || "dinner";
+  const title = str(formData.get("title"));
+  const cook = str(formData.get("cook_id"));
+  const note = str(formData.get("note"));
+
+  if (!isDateKey(day)) throw new Error("Pick a day.");
+  if (!["breakfast", "lunch", "dinner"].includes(slot)) throw new Error("Pick a meal.");
+  if (!title) throw new Error("What's for the meal?");
+
+  const { supabase } = await ctx();
+
+  const { error } = await supabase
+    .from("meal_plans")
+    .update({
+      day,
+      slot,
+      title,
+      cook_id: cook || null,
+      note: note || null,
+    })
+    .eq("id", mealId)
+    .eq("group_id", groupId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/g/${groupId}/meals`);
+}
+
 // ── Chores ────────────────────────────────────────────────────────────
 
 export async function addChore(groupId: string, formData: FormData) {
