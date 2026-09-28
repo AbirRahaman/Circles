@@ -51,6 +51,7 @@ export function GameSelector({
 }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [order, setOrder] = useState<string[]>([userId]); // current user starts in seat 1
+  const [mode, setMode] = useState<"single" | "multi">("multi");
   const game = GAMES.find((g) => g.kind === selected);
 
   const togglePlayer = useCallback((id: string) => {
@@ -86,11 +87,45 @@ export function GameSelector({
           className="flex flex-col gap-3 rounded-xl border border-line bg-surface p-3.5"
         >
           <input type="hidden" name="kind" value={game.kind} />
+          <input type="hidden" name="mode" value={mode} />
           {eventId && <input type="hidden" name="event_id" value={eventId} />}
           {/* Hidden inputs carry the tap-ordered player IDs */}
           {order.map((id) => (
             <input key={id} type="hidden" name="players" value={id} />
           ))}
+
+          {/* Phone mode */}
+          <fieldset className="flex flex-col gap-1.5">
+            <legend className="text-[12.5px] font-semibold text-ink-2 mb-1.5">
+              How are you playing?
+            </legend>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setMode("single")}
+                className={`flex flex-col gap-1 rounded-xl border p-3 text-left transition-colors ${
+                  mode === "single"
+                    ? "border-accent bg-accent-soft"
+                    : "border-line bg-surface-2 hover:bg-surface-2/80"
+                }`}
+              >
+                <span className="text-[14px] font-semibold">One phone</span>
+                <span className="text-[11.5px] text-ink-2 leading-snug">Pass it around the table</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("multi")}
+                className={`flex flex-col gap-1 rounded-xl border p-3 text-left transition-colors ${
+                  mode === "multi"
+                    ? "border-accent bg-accent-soft"
+                    : "border-line bg-surface-2 hover:bg-surface-2/80"
+                }`}
+              >
+                <span className="text-[14px] font-semibold">Own phones</span>
+                <span className="text-[11.5px] text-ink-2 leading-snug">Everyone plays on theirs</span>
+              </button>
+            </div>
+          </fieldset>
 
           <fieldset className="flex flex-col gap-1.5">
             <legend className="text-[12.5px] font-semibold text-ink-2 mb-1.5">
@@ -152,6 +187,8 @@ export function GameSelector({
           <p className="text-[12px] text-ink-2">
             {order.length < game.min
               ? `Tap at least ${game.min} players to start.`
+              : mode === "single"
+              ? "One phone — pass it around for each turn."
               : "Everyone plays from their own phone."}
           </p>
         </form>

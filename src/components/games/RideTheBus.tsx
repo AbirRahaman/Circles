@@ -28,15 +28,20 @@ const ROUND_ASK: Record<Round, string> = {
 };
 
 export function RideTheBus({
-  gameId, groupId, players, initialRows, me, status,
+  gameId, groupId, players, initialRows, me, status, mode = "multi",
 }: {
-  gameId: string; groupId: string; players: Player[]; initialRows: Row[]; me: string; status: string;
+  gameId: string; groupId: string; players: Player[]; initialRows: Row[]; me: string; status: string; mode?: "single" | "multi";
 }) {
   const [rows, setRows] = useState<Row[]>(initialRows);
   const [error, setError] = useState<string | null>(null);
   const [warn, setWarn] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const lastSeq = useRef(initialRows.at(-1)?.seq ?? -1);
+
+  // Single-phone handoff: hide the game between turns so the next player
+  // doesn't see the previous player's guess.
+  const [handoffReady, setHandoffReady] = useState(false);
+  const prevActor = useRef<string | null>(null);
 
   const merge = useCallback((incoming: Row[]) => {
     setRows((prev) => {
@@ -83,6 +88,15 @@ export function RideTheBus({
   const line = dealerLine(state, last, events.length, nameOf);
   const actor = actorFor(state);
   const myTurn = actor === me;
+  const singlePhone = mode === "single";
+
+  // Reset handoff screen whenever the actor changes (new turn)
+  useEffect(() => {
+    if (prevActor.current !== null && actor !== prevActor.current) {
+      setHandoffReady(false);
+    }
+    prevActor.current = actor;
+  }, [actor]);
   const round = phaseRound(state.phase);
   const inGame = state.order.includes(me);
   const unit = state.stakes === "drinks" ? "drink" : "point";
@@ -133,7 +147,8 @@ export function RideTheBus({
 
   const guess = (g: Guess) => {
     if (!round) return;
-    const hand = (state.hands[me] ?? []).map((h) => h.card);
+    const guesser = singlePhone ? (actor ?? me) : me;
+    const hand = (state.hands[guesser] ?? []).map((h) => h.card);
     const bad = impossible(round, g, hand);
     if (bad && warn !== bad) { setWarn(bad); return; } // tap again to confirm
     run(() => makeGuess(gameId, g));
@@ -158,6 +173,32 @@ export function RideTheBus({
 
       {error && <p className="text-[13.5px] text-no border border-no-soft bg-no-soft rounded-lg px-3 py-2">{error}</p>}
       {warn && <p className="text-[13.5px] text-maybe border border-maybe-soft bg-maybe-soft rounded-lg px-3 py-2">{warn} Tap the same button again to go ahead.</p>}
+
+      {/* Single-phone handoff screen — covers the game between turns */}
+      {singlePhone && !handoffReady && actor && phaseRound(state.phase) && (
+        <div className="flex flex-col items-center gap-5 py-10">
+          <div className="w-16 h-16 rounded-full bg-accent-soft flex items-center justify-center">
+            <svg viewBox="0 0 24 24" width={28} height={28} fill="none" stroke="var(--accent)" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+              <rect x="7" y="2" width="10" height="20" rx="2" />
+              <line x1="12" y1="18" x2="12" y2="18.01" strokeWidth="2.5" />
+            </svg>
+          </div>
+          <div className="text-center">
+            <p className="text-ink-2 text-[14px] mb-1">Pass the phone to</p>
+            <p className="font-display font-bold text-[24px] tracking-tight">{first(actor)}</p>
+            <p className="text-ink-3 text-[13px] mt-1">Round {phaseRound(state.phase)} · {phaseRound(state.phase)} {unit}{phaseRound(state.phase)! > 1 ? "s" : ""} on the line</p>
+          </div>
+          <button
+            onClick={() => setHandoffReady(true)}
+            className="rounded-xl bg-accent text-accent-ink px-8 py-3.5 font-semibold text-[15px]"
+          >
+            I&rsquo;m {first(actor)}
+          </button>
+        </div>
+      )}
+
+      {/* Everything below is hidden during single-phone handoff */}
+      {!(singlePhone && !handoffReady && actor && phaseRound(state.phase)) && (<>
 
       {/* Result flash */}
       {result && (
@@ -218,9 +259,11 @@ export function RideTheBus({
             <h2 className="font-display font-bold text-[16px]">Round {round}</h2>
             <span className="text-[12.5px] text-ink-3">{round} {unit}{round === 1 ? "" : "s"} on the line</span>
           </div>
-          {myTurn ? (
+          {(myTurn || singlePhone) ? (
             <>
-              <p className="text-[14px] text-ink-2">{ROUND_ASK[round]}</p>
+              <p className="text-[14px] text-ink-2">
+                {singlePhone && actor ? `${first(actor)}: ` : ""}{ROUND_ASK[round]}
+              </p>
               <div className={`grid gap-2 ${round === 4 ? "grid-cols-2" : "grid-cols-2"}`}>
                 {GUESSES[round].map((g) => (
                   <button
@@ -240,11 +283,14 @@ export function RideTheBus({
         </div>
       )}
 
+      </>)}
+      {/* ↑ end of single-phone handoff wrapper */}
+
       {/* Pick pyramid master */}
       {state.phase === "pickPyramidMaster" && (
         <div className="flex flex-col gap-2.5">
           <h2 className="font-display font-bold text-[16px]">Pyramid time</h2>
-          {me === state.createdBy ? (
+          {(me === state.createdBy || singlePhone) ? (
             <>
               <p className="text-[14px] text-ink-2">Pick who reveals the pyramid cards and runs this round.</p>
               <div className="flex flex-col gap-2">
@@ -269,7 +315,7 @@ export function RideTheBus({
       {/* Pyramid */}
       {state.phase === "pyramid" && (() => {
         const nextSlot = nextPyramidSlot(state.pyramid);
-        const isMaster = state.pyramidMaster === me;
+        const isMaster = state.pyramidMaster === me || singlePhone;
         const totalSlots = state.pyramid.reduce((n, r) => n + r.length, 0);
         return (
           <div className="flex flex-col gap-3">
@@ -346,7 +392,7 @@ export function RideTheBus({
       {state.phase === "pickBusDealer" && (
         <div className="flex flex-col gap-2.5">
           <h2 className="font-display font-bold text-[16px]">{first(state.rider ?? "")} rides the bus</h2>
-          {me === state.createdBy ? (
+          {(me === state.createdBy || singlePhone) ? (
             <>
               <p className="text-[14px] text-ink-2">Pick who deals the cards to {first(state.rider ?? "")}.</p>
               <div className="flex flex-col gap-2">
@@ -398,7 +444,7 @@ export function RideTheBus({
                 </span>
               ))}
             </div>
-            {state.rider === me ? (
+            {(state.rider === me || singlePhone) ? (
               <>
                 <p className="text-[14px] text-ink-2">{ROUND_ASK[busStep(state)]}</p>
                 <div className="grid grid-cols-2 gap-2">
@@ -473,8 +519,9 @@ export function RideTheBus({
         )}
       </div>
       <p className="text-[12px] text-ink-3">
-        Cards are drawn on the server and written to a log every phone reads, so everyone sees the
-        same game and nobody can deal themselves a better one.
+        {singlePhone
+          ? "Single phone — pass it around for each turn. Cards are drawn on the server."
+          : "Cards are drawn on the server and written to a log every phone reads, so everyone sees the same game and nobody can deal themselves a better one."}
       </p>
     </div>
   );

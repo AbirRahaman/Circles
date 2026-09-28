@@ -8,7 +8,7 @@ import { requireUser } from "@/lib/auth";
 import {
   reduceEvents, actorFor, findMatches, judge, busStep, busHand, rowValue,
   nextPyramidSlot, PYRAMID_ROWS, SUITS, buildAnalysis,
-  type Card, type GameEvent, type Guess, type Persona, type Stakes, type Round, type State,
+  type Card, type GameEvent, type GameMode, type Guess, type Persona, type Stakes, type Round, type State,
 } from "@/lib/games/ridethebus";
 import {
   reduceEvents as synReduceEvents,
@@ -28,7 +28,7 @@ const fail = (error: string): Result => ({ ok: false, error });
 type Ctx = {
   user: { id: string };
   supabase: Awaited<ReturnType<typeof createClient>>;
-  game: { id: string; group_id: string; event_id: string | null; kind: string; status: string; persona: string; stakes: string };
+  game: { id: string; group_id: string; event_id: string | null; kind: string; status: string; persona: string; stakes: string; mode: string };
   events: GameEvent[];
   state: State;
 };
@@ -45,7 +45,7 @@ async function load(gameId: string): Promise<Ctx | { error: string }> {
   const user = await requireUser();
   const supabase = await createClient();
   const [{ data: game }, { data: rows }] = await Promise.all([
-    supabase.from("games").select("id, group_id, event_id, kind, status, persona, stakes").eq("id", gameId).maybeSingle(),
+    supabase.from("games").select("id, group_id, event_id, kind, status, persona, stakes, mode").eq("id", gameId).maybeSingle(),
     supabase.from("game_events").select("seq, payload").eq("game_id", gameId).order("seq"),
   ]);
   if (!game) return { error: "That game is gone." };
@@ -57,7 +57,7 @@ async function loadSYN(gameId: string): Promise<SYNCtx | { error: string }> {
   const user = await requireUser();
   const supabase = await createClient();
   const [{ data: game }, { data: rows }] = await Promise.all([
-    supabase.from("games").select("id, group_id, event_id, kind, status, persona, stakes").eq("id", gameId).maybeSingle(),
+    supabase.from("games").select("id, group_id, event_id, kind, status, persona, stakes, mode").eq("id", gameId).maybeSingle(),
     supabase.from("game_events").select("seq, payload").eq("game_id", gameId).order("seq"),
   ]);
   if (!game) return { error: "That game is gone." };
@@ -90,6 +90,7 @@ export async function createGame(groupId: string, formData: FormData) {
   const players = formData.getAll("players").map(String).filter(Boolean);
   const persona = String(formData.get("persona") ?? "asshole") as Persona;
   const stakes = String(formData.get("stakes") ?? "drinks") as Stakes;
+  const mode = String(formData.get("mode") ?? "multi") as GameMode;
   const eventId = String(formData.get("event_id") ?? "") || null;
 
   const minPlayers = kind === "screwyourneighbor" ? 3 : 2;
@@ -98,6 +99,7 @@ export async function createGame(groupId: string, formData: FormData) {
   if (!["neutral", "grudge", "asshole"].includes(persona)) throw new Error("Unknown dealer.");
   if (!["drinks", "points"].includes(stakes)) throw new Error("Unknown stakes.");
   if (!["ridethebus", "screwyourneighbor"].includes(kind)) throw new Error("Unknown game.");
+  if (!["single", "multi"].includes(mode)) throw new Error("Unknown mode.");
 
   const user = await requireUser();
   if (!players.includes(user.id)) throw new Error("You have to be in the game to start it.");
@@ -105,7 +107,7 @@ export async function createGame(groupId: string, formData: FormData) {
   const supabase = await createClient();
   const { data: game, error } = await supabase
     .from("games")
-    .insert({ group_id: groupId, event_id: eventId, kind, persona, stakes, created_by: user.id })
+    .insert({ group_id: groupId, event_id: eventId, kind, persona, stakes, mode, created_by: user.id })
     .select("id")
     .single();
   if (error) throw new Error(error.message);
@@ -125,7 +127,7 @@ export async function createGame(groupId: string, formData: FormData) {
     const dealt: SYNEvent = { t: "dealt", round: 1, cards, dealer: players.length - 1 };
     await supabase.from("game_events").insert({ game_id: game.id, type: dealt.t, payload: dealt, actor: user.id });
   } else {
-    const created: GameEvent = { t: "created", order: players, persona, stakes, by: user.id };
+    const created: GameEvent = { t: "created", order: players, persona, stakes, mode, by: user.id };
     const { error: eErr } = await supabase
       .from("game_events")
       .insert({ game_id: game.id, type: created.t, payload: created, actor: user.id });
@@ -141,24 +143,30 @@ export async function createGame(groupId: string, formData: FormData) {
 export async function makeGuess(gameId: string, guess: Guess): Promise<Result> {
   const ctx = await load(gameId);
   if ("error" in ctx) return fail(ctx.error);
-  const { state, user } = ctx;
+  const { state, user, game } = ctx;
 
   const round = state.phase === "r1" ? 1 : state.phase === "r2" ? 2 : state.phase === "r3" ? 3 : state.phase === "r4" ? 4 : null;
   if (!round) return fail("That part of the game is over.");
-  if (actorFor(state) !== user.id) return fail("It isn't your turn.");
 
-  const hand = (state.hands[user.id] ?? []).map((h) => h.card);
+  const single = game.mode === "single";
+  const currentActor = actorFor(state);
+  // In single-phone mode any player in the game can act for the current turn
+  if (!single && currentActor !== user.id) return fail("It isn't your turn.");
+  if (single && !state.order.includes(user.id)) return fail("You're not in this game.");
+  const player = single ? currentActor! : user.id;
+
+  const hand = (state.hands[player] ?? []).map((h) => h.card);
   const card = draw();
   const correct = judge(round as Round, guess, hand, card);
-  return append(ctx, [{ t: "guess", player: user.id, round: round as Round, guess, card, correct, drinks: round }]);
+  return append(ctx, [{ t: "guess", player, round: round as Round, guess, card, correct, drinks: round }]);
 }
 
 export async function setPyramidMaster(gameId: string, masterId: string): Promise<Result> {
   const ctx = await load(gameId);
   if ("error" in ctx) return fail(ctx.error);
-  const { state, user } = ctx;
+  const { state, user, game } = ctx;
   if (state.phase !== "pickPyramidMaster") return fail("Not time to pick yet.");
-  if (user.id !== state.createdBy) return fail("Only the person who started the game picks.");
+  if (game.mode !== "single" && user.id !== state.createdBy) return fail("Only the person who started the game picks.");
   if (!state.order.includes(masterId)) return fail("That player isn't in this game.");
   return append(ctx, [{ t: "setPyramidMaster", by: user.id, master: masterId }]);
 }
@@ -166,9 +174,9 @@ export async function setPyramidMaster(gameId: string, masterId: string): Promis
 export async function setBusDealer(gameId: string, dealerId: string | "computer"): Promise<Result> {
   const ctx = await load(gameId);
   if ("error" in ctx) return fail(ctx.error);
-  const { state, user } = ctx;
+  const { state, user, game } = ctx;
   if (state.phase !== "pickBusDealer") return fail("Not time to pick yet.");
-  if (user.id !== state.createdBy) return fail("Only the person who started the game picks.");
+  if (game.mode !== "single" && user.id !== state.createdBy) return fail("Only the person who started the game picks.");
   if (dealerId !== "computer" && !state.order.includes(dealerId)) return fail("That player isn't in this game.");
   return append(ctx, [{ t: "setBusDealer", by: user.id, dealer: dealerId }]);
 }
@@ -176,9 +184,10 @@ export async function setBusDealer(gameId: string, dealerId: string | "computer"
 export async function revealSlot(gameId: string): Promise<Result> {
   const ctx = await load(gameId);
   if ("error" in ctx) return fail(ctx.error);
-  const { state, user } = ctx;
+  const { state, user, game } = ctx;
   if (state.phase !== "pyramid") return fail("The pyramid isn't up yet.");
-  if (state.pyramidMaster && user.id !== state.pyramidMaster) return fail("Only the pyramid master reveals.");
+  const single = game.mode === "single";
+  if (!single && state.pyramidMaster && user.id !== state.pyramidMaster) return fail("Only the pyramid master reveals.");
 
   const next = nextPyramidSlot(state.pyramid);
   if (!next) return fail("Every card has been flipped.");
@@ -206,7 +215,8 @@ export async function finishPyramid(gameId: string): Promise<Result> {
   const ctx = await load(gameId);
   if ("error" in ctx) return fail(ctx.error);
   if (ctx.state.phase !== "pyramid") return fail("The pyramid is already done.");
-  if (ctx.state.pyramidMaster && ctx.user.id !== ctx.state.pyramidMaster) return fail("Only the pyramid master finishes.");
+  const singleP = ctx.game.mode === "single";
+  if (!singleP && ctx.state.pyramidMaster && ctx.user.id !== ctx.state.pyramidMaster) return fail("Only the pyramid master finishes.");
   return append(ctx, [{ t: "pyramidDone", by: ctx.user.id }]);
 }
 
@@ -225,9 +235,11 @@ export async function tiebreakDraw(gameId: string): Promise<Result> {
 export async function busGuess(gameId: string, guess: Guess): Promise<Result> {
   const ctx = await load(gameId);
   if ("error" in ctx) return fail(ctx.error);
-  const { state, user } = ctx;
+  const { state, user, game } = ctx;
   if (state.phase !== "bus") return fail("Nobody's on the bus.");
-  if (state.rider !== user.id) return fail("Only the rider taps here.");
+  const single = game.mode === "single";
+  if (!single && state.rider !== user.id) return fail("Only the rider taps here.");
+  if (single && !state.order.includes(user.id)) return fail("You're not in this game.");
 
   const step = busStep(state);
   const card = draw();

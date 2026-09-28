@@ -23,11 +23,12 @@ export type Round = 1 | 2 | 3 | 4;
 export type Guess = "red" | "black" | "higher" | "lower" | "inside" | "outside" | Suit;
 export type Persona = "neutral" | "grudge" | "asshole";
 export type Stakes = "drinks" | "points";
+export type GameMode = "single" | "multi";
 
 export const PYRAMID_ROWS = [4, 3, 2, 1]; // index 0 = base (4 cards), drinks = index + 1
 
 export type GameEvent =
-  | { t: "created"; order: string[]; persona: Persona; stakes: Stakes; by: string }
+  | { t: "created"; order: string[]; persona: Persona; stakes: Stakes; mode: GameMode; by: string }
   | { t: "guess"; player: string; round: Round; guess: Guess; card: Card; correct: boolean; drinks: number }
   | { t: "setPyramidMaster"; by: string; master: string }
   | { t: "pyramid"; row: number; col: number; card: Card; matches: { player: string; index: number }[]; each: number }
@@ -60,6 +61,7 @@ export type LogLine = { text: string; drinks?: string };
 
 export type State = {
   phase: Phase;
+  mode: GameMode;
   order: string[];
   turn: number;                  // index into order, rounds 1–4 only
   persona: Persona;
@@ -136,7 +138,7 @@ export function nextPyramidSlot(pyramid: (Card | null)[][]): { row: number; col:
 
 export function reduceEvents(events: GameEvent[]): State {
   const s: State = {
-    phase: "r1", order: [], turn: 0, persona: "asshole", stakes: "drinks",
+    phase: "r1", mode: "multi", order: [], turn: 0, persona: "asshole", stakes: "drinks",
     createdBy: "",
     hands: {}, pyramid: emptyPyramid(), revealed: 0,
     pyramidMaster: null, busDealer: null,
@@ -150,6 +152,7 @@ export function reduceEvents(events: GameEvent[]): State {
         s.order = [...e.order];
         s.persona = e.persona;
         s.stakes = e.stakes;
+        s.mode = e.mode ?? "multi";
         s.createdBy = e.by;
         for (const p of e.order) {
           s.hands[p] = [];

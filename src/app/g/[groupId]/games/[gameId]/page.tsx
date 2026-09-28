@@ -24,7 +24,7 @@ export default async function GamePage({
   await requireFeature(groupId, "games");
 
   const [{ data: game }, { data: playerRows }, { data: eventRows }, members] = await Promise.all([
-    supabase.from("games").select("id, kind, status, event_id, persona, stakes").eq("id", gameId).eq("group_id", groupId).maybeSingle(),
+    supabase.from("games").select("id, kind, status, event_id, persona, stakes, mode").eq("id", gameId).eq("group_id", groupId).maybeSingle(),
     supabase.from("game_players").select("user_id, seat").eq("game_id", gameId).order("seat"),
     supabase.from("game_events").select("seq, payload").eq("game_id", gameId).order("seq"),
     fetchMembers(supabase, groupId),
@@ -66,6 +66,7 @@ export default async function GamePage({
           initialRows={(eventRows ?? []).map((r) => ({ seq: r.seq as number, payload: r.payload as GameEvent }))}
           me={user.id}
           status={game.status}
+          mode={(game.mode as "single" | "multi") ?? "multi"}
         />
       )}
     </>
