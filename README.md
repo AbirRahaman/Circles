@@ -1,4 +1,4 @@
-# Circles
+# Socius
 
 Friend-group coordination: plans, money, photos and challenges, one place per group.
 Mobile-first web app. A single person belongs to any number of independent groups.

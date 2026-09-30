@@ -5,7 +5,7 @@ import { GameSelector } from "@/components/games/GameSelector";
 import { fetchMembers } from "@/lib/members";
 import { timeAgo } from "@/lib/format";
 
-export const metadata = { title: "Games · Circles" };
+export const metadata = { title: "Games · Socius" };
 
 const GAME_LABELS: Record<string, string> = {
   ridethebus: "Ride the Bus",

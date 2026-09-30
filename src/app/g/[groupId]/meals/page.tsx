@@ -7,7 +7,7 @@ import { fetchMembers } from "@/lib/members";
 import { fmtDate, groupToday } from "@/lib/format";
 import { addDays, isDateKey, mondayOf, weekdayShort } from "@/lib/week";
 
-export const metadata = { title: "Meals · Circles" };
+export const metadata = { title: "Meals · Socius" };
 
 type Meal = { id: string; day: string; slot: string; title: string; cook_id: string | null; note: string | null };
 const SLOTS = ["breakfast", "lunch", "dinner"] as const;

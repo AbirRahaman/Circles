@@ -5,7 +5,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { fetchMembers } from "@/lib/members";
 import { timeAgo } from "@/lib/format";
 
-export const metadata = { title: "Groceries · Circles" };
+export const metadata = { title: "Groceries · Socius" };
 
 type Item = {
   id: string; name: string; qty: string | null; added_by: string;

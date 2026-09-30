@@ -6,7 +6,7 @@ import { fetchMembers } from "@/lib/members";
 import { fmtDate, groupToday } from "@/lib/format";
 import { addDays, mondayOf, turnFor } from "@/lib/week";
 
-export const metadata = { title: "Chores · Circles" };
+export const metadata = { title: "Chores · Socius" };
 
 type Chore = { id: string; title: string; rotation: string[]; start_week: string; created_by: string };
 type Done = { id: string; chore_id: string; week_start: string; done_by: string; done_at: string };

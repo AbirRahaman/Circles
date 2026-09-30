@@ -9,7 +9,7 @@ const sans = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-sans" });
 const display = Fraunces({ subsets: ["latin"], variable: "--font-display" });
 
 export const metadata: Metadata = {
-  title: "Circles",
+  title: "Socius",
   description: "Plans, money, photos and challenges for your friend group.",
 };
 

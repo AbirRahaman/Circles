@@ -7,7 +7,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { GroupTypePicker } from "@/components/GroupTypePicker";
 import { TopBar } from "@/components/TopBar";
 
-export const metadata = { title: "Your groups · Circles" };
+export const metadata = { title: "Your groups · Socius" };
 
 export default async function GroupsPage() {
   const user = await requireUser();

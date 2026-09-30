@@ -13,7 +13,7 @@ const GAME_LABELS: Record<string, string> = {
 };
 
 export async function generateMetadata({ params }: { params: Promise<{ groupId: string; gameId: string }> }) {
-  return { title: "Game · Circles" };
+  return { title: "Game · Socius" };
 }
 
 export default async function GamePage({

@@ -28,7 +28,7 @@ export default async function Home() {
   return (
     <div className="shell">
       <TopBar
-        title="Circles"
+        title="Socius"
         actions={
           <Link href="/profile" aria-label="You" className="w-8 h-8 grid place-items-center rounded-lg text-ink-2 hover:bg-surface-2 hover:text-ink">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4" /><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" /></svg>
@@ -40,7 +40,7 @@ export default async function Home() {
           <h1 className="text-2xl font-bold tracking-[-0.025em]">You&rsquo;re not in a group yet</h1>
           <p className="text-[15px] font-medium text-ink-2 italic">Where things make it out the group chat.</p>
           <p className="text-[14px] text-ink-2 leading-relaxed">
-            Circles is private by invitation. Groups don&rsquo;t appear in search and can&rsquo;t be
+            Socius is private by invitation. Groups don&rsquo;t appear in search and can&rsquo;t be
             browsed — someone already inside sends you a link, and following it puts you in.
           </p>
         </div>

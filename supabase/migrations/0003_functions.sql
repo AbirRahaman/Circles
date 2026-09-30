@@ -1,4 +1,4 @@
--- Circles — membership transitions and the event flow.
+-- Socius — membership transitions and the event flow.
 -- These run security definer because they legitimately cross the RLS line
 -- (an invite link is followed by someone who is not a member yet), so each
 -- one re-checks permission itself before it writes.

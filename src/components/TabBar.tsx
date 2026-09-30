@@ -39,7 +39,7 @@ export function TabBar({ groupId, type }: { groupId: string; type: GroupType }) 
 
   return (
     <nav className={`appnav${solo ? " appnav--solo" : ""}`}>
-      <Link href="/groups" className="appnav__brand">Circles</Link>
+      <Link href="/groups" className="appnav__brand">Socius</Link>
       {tabs.map((t) => {
         const active = t.href === base
           ? path === base || path.startsWith(`${base}/events`)

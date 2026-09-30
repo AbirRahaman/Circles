@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui";
 import { TopBar } from "@/components/TopBar";
 
-export const metadata = { title: "Privacy · Circles" };
+export const metadata = { title: "Privacy · Socius" };
 
 export default function PrivacyPage() {
   return (
@@ -11,7 +11,7 @@ export default function PrivacyPage() {
       <main className="flex-1 flex flex-col gap-4 px-3.5 py-4">
         <Card className="p-4 flex flex-col gap-4 text-[14px] leading-relaxed">
           <p>
-            Circles is a small app for coordinating plans inside a private friend group.
+            Socius is a small app for coordinating plans inside a private friend group.
             This page describes exactly what it stores and who can see it.
           </p>
 
@@ -41,7 +41,7 @@ export default function PrivacyPage() {
           <section className="flex flex-col gap-1.5">
             <h2 className="font-semibold text-[15px]">Photos</h2>
             <p className="text-ink-2">
-              Circles never receives your photos. When someone shares an album, only the link
+              Socius never receives your photos. When someone shares an album, only the link
               is stored — the photos stay wherever the album lives, under that service&rsquo;s
               own privacy terms.
             </p>
@@ -53,7 +53,7 @@ export default function PrivacyPage() {
               Only if a group admin chooses to connect it. Balances are read live from
               Splitwise and shown to you; they are not copied into this app&rsquo;s database.
               The access token is encrypted before being stored. No money moves through
-              Circles.
+              Socius.
             </p>
           </section>
 

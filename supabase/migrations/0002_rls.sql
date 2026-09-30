@@ -1,4 +1,4 @@
--- Circles — row-level security
+-- Socius — row-level security
 -- Section 3 of the spec, enforced in the database rather than in route
 -- handlers: every group-scoped write first proves active membership, and
 -- the admin-gated ones additionally prove role = 'admin'.

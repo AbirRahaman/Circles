@@ -9,7 +9,7 @@ import { TopBar } from "@/components/TopBar";
 import { MonthCalendar, type CalEvent, type DayCell } from "@/components/MonthCalendar";
 import { fmtTime, fmtRange, isUnderway, toInput, groupToday } from "@/lib/format";
 
-export const metadata = { title: "Calendar · Circles" };
+export const metadata = { title: "Calendar · Socius" };
 
 /* Date arithmetic on YYYY-MM-DD strings anchored at noon UTC — far enough
  * from either edge that adding days never lands on the wrong date. */

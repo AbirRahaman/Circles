@@ -41,7 +41,7 @@ export function buildIcs(calendarName: string, events: IcsEvent[]) {
   const lines: string[] = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Circles//Group Calendar//EN",
+    "PRODID:-//Socius//Group Calendar//EN",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     `X-WR-CALNAME:${esc(calendarName)}`,

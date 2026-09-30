@@ -7,7 +7,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { TopBar } from "@/components/TopBar";
 import { fmtDay } from "@/lib/format";
 
-export const metadata = { title: "You · Circles" };
+export const metadata = { title: "You · Socius" };
 
 export default async function ProfilePage() {
   const user = await requireUser();
@@ -94,7 +94,7 @@ export default async function ProfilePage() {
             </dl>
             <Note>
               Your email address comes from {providerName} and can&rsquo;t be changed here.
-              Circles never sees or stores a password.
+              Socius never sees or stores a password.
             </Note>
             <form action={signOut}>
               <SubmitButton variant="ghost" className="w-full" pendingLabel="Signing out…">Sign out</SubmitButton>
@@ -104,7 +104,7 @@ export default async function ProfilePage() {
 
         <div className="flex flex-col gap-2 px-0.5">
           <Link href="/calendar" className="text-[13px] text-accent">Your calendar and sync settings</Link>
-          <Link href="/privacy" className="text-[13px] text-accent">What Circles stores about you</Link>
+          <Link href="/privacy" className="text-[13px] text-accent">What Socius stores about you</Link>
         </div>
       </main>
     </div>

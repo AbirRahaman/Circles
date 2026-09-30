@@ -1,4 +1,4 @@
--- Circles — development seed
+-- Socius — development seed
 --
 -- Defines dev_seed(email): builds a filled-in group around a user who has
 -- already signed in once, plus four fake friends, so every screen has
@@ -27,7 +27,7 @@ begin
     confirmation_token, recovery_token, email_change_token_new, email_change
   ) values (
     '00000000-0000-0000-0000-000000000000', uid, 'authenticated', 'authenticated',
-    p_email, crypt('circles-dev-password', gen_salt('bf')),
+    p_email, crypt('socius-dev-password', gen_salt('bf')),
     now(), now(), now(),
     '{"provider":"email","providers":["email"]}'::jsonb,
     jsonb_build_object('name', p_name),
@@ -51,10 +51,10 @@ begin
     raise exception 'No user with email %. Sign in to the app once first, then re-run.', p_email;
   end if;
 
-  maya  := dev_fake_user('maya@circles.test',  'Maya');
-  devon := dev_fake_user('devon@circles.test', 'Devon');
-  priya := dev_fake_user('priya@circles.test', 'Priya');
-  sam   := dev_fake_user('sam@circles.test',   'Sam');
+  maya  := dev_fake_user('maya@socius.test',  'Maya');
+  devon := dev_fake_user('devon@socius.test', 'Devon');
+  priya := dev_fake_user('priya@socius.test', 'Priya');
+  sam   := dev_fake_user('sam@socius.test',   'Sam');
 
   insert into friend_groups (name, created_by) values ('Cabin Crew', me) returning id into g;
 

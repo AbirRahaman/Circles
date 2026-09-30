@@ -32,8 +32,8 @@ export default function LoginPage() {
     <div className="shell">
       <main className="flex-1 flex flex-col justify-center gap-4 px-3.5 py-8">
         <div className="flex flex-col gap-1.5 px-1">
-          <span className="w-11 h-11 rounded-xl bg-accent text-accent-ink grid place-items-center font-display font-extrabold text-xl">C</span>
-          <h1 className="font-display font-extrabold text-2xl mt-2">Circles</h1>
+          <span className="w-11 h-11 rounded-xl bg-accent text-accent-ink grid place-items-center font-display font-extrabold text-xl">S</span>
+          <h1 className="font-display font-extrabold text-2xl mt-2">Socius</h1>
           <p className="text-[14px] text-ink-2">Plans, money, photos and challenges — one place per friend group.</p>
         </div>
 

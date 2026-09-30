@@ -1,4 +1,4 @@
-# Running Circles locally
+# Running Socius locally
 
 ## Does this need a backend running?
 
@@ -6,7 +6,7 @@ No. Supabase is hosted, so there is exactly one process on your machine — the 
 dev server. There is no API server, no worker, no Docker, unless you deliberately
 choose the local-Supabase route in Option B below.
 
-The wrinkle is that Circles has no public pages. Every screen sits behind sign-in and
+The wrinkle is that Socius has no public pages. Every screen sits behind sign-in and
 every screen is scoped to a group, so pointing `npm run dev` at an empty database gets
 you a login form and nothing else. Pick one of the three options below depending on
 what you actually want to poke at.
@@ -98,7 +98,7 @@ machine. Then `select dev_seed('you@example.com');` as above.
 ## Option C — no backend at all
 
 For pure visual tinkering — spacing, colour, type, layout — open
-`docs/prototype-circles.html` in any browser. Every screen renders with sample data,
+`docs/prototype-socius.html` in any browser. Every screen renders with sample data,
 no install, no database, no sign-in. Edit the file, hit refresh.
 
 The catch: that file is a standalone prototype, not the app. Changes there do not carry

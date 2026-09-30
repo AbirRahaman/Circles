@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui";
 import { TopBar } from "@/components/TopBar";
 
-export const metadata = { title: "Terms · Circles" };
+export const metadata = { title: "Terms · Socius" };
 
 export default function TermsPage() {
   return (
@@ -11,7 +11,7 @@ export default function TermsPage() {
       <main className="flex-1 flex flex-col gap-4 px-3.5 py-4">
         <Card className="p-4 flex flex-col gap-4 text-[14px] leading-relaxed">
           <p>
-            Circles is a personal project offered free of charge for coordinating plans within
+            Socius is a personal project offered free of charge for coordinating plans within
             private friend groups. Using it means accepting the terms below.
           </p>
 
@@ -36,7 +36,7 @@ export default function TermsPage() {
           <section className="flex flex-col gap-1.5">
             <h2 className="font-semibold text-[15px]">Acceptable use</h2>
             <p className="text-ink-2">
-              Do not use Circles to harass anyone, to share unlawful content, or to attempt to
+              Do not use Socius to harass anyone, to share unlawful content, or to attempt to
               reach data belonging to groups you are not a member of. Accounts doing so may be
               removed without notice.
             </p>
@@ -47,7 +47,7 @@ export default function TermsPage() {
             <p className="text-ink-2">
               The service is provided as-is, with no guarantee of availability, and it may
               change or stop working at any time. Keep your own copy of anything you would
-              mind losing. Circles is a display layer for plans and balances — it is not a
+              mind losing. Socius is a display layer for plans and balances — it is not a
               system of record for money owed, and it moves no money.
             </p>
           </section>

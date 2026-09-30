@@ -1,4 +1,4 @@
-# Deploying Circles
+# Deploying Socius
 
 Roughly 40 minutes end to end. Order matters — Supabase first, Vercel second, then
 point auth back at the live domain. Doing Vercel first means a deploy that can't sign
@@ -48,7 +48,7 @@ month and takes about five minutes to wire into Supabase → Project Settings �
 
 ```bash
 git add -A
-git commit -m "Circles: initial app"
+git commit -m "Socius: initial app"
 git push -u origin main
 ```
 
@@ -56,7 +56,7 @@ git push -u origin main
 
 ## 4 · Vercel (10 min)
 
-[vercel.com](https://vercel.com) → Add New → Project → import `AbirRahaman/Circles`.
+[vercel.com](https://vercel.com) → Add New → Project → import `AbirRahaman/Socius`.
 Next.js is detected automatically; no build settings to change.
 
 Set environment variables before the first deploy:

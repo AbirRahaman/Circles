@@ -89,7 +89,7 @@ export default async function PhotosTab({ params }: { params: Promise<{ groupId:
       </Card>
 
       <Note>
-        Circles stores the link and album name — your photos stay in Apple or Google.
+        Socius stores the link and album name — your photos stay in Apple or Google.
         No photos touch our servers.
       </Note>
     </>

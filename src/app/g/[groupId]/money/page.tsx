@@ -21,7 +21,7 @@ export default async function MoneyTab({ params }: { params: Promise<{ groupId: 
         <SectionHead title="Splitwise" right={<Pill dot>Not linked</Pill>} />
         <Card className="p-3.5 flex flex-col gap-3">
           <p className="text-[13.5px]">
-            Circles never holds money or copies expenses. Link this friend group to its
+            Socius never holds money or copies expenses. Link this friend group to its
             existing Splitwise group and balances are read live whenever you open this tab.
           </p>
           {isAdmin ? (
@@ -49,7 +49,7 @@ export default async function MoneyTab({ params }: { params: Promise<{ groupId: 
         <SectionHead title="Splitwise" right={<Pill tone="maybe" dot>Linked</Pill>} />
         <Note tone="warn">
           Could not reach Splitwise: {balances.error}. Balances will reappear once the
-          connection is working — nothing in Circles changed.
+          connection is working — nothing in Socius changed.
         </Note>
       </>
     );

@@ -17,7 +17,7 @@ export type GridPerson = {
   color: string;
   initials: string;
   busy: string[];
-  /** Days they already have something on, from their other Circles plans. */
+  /** Days they already have something on, from their other Socius plans. */
   committed: string[];
   answered: boolean;
 };

@@ -60,7 +60,7 @@ export async function fetchBalances(
   };
   const swMembers = body.group?.members ?? [];
 
-  // Match Splitwise members to Circles profiles by email where we can, so
+  // Match Splitwise members to Socius profiles by email where we can, so
   // "you" is highlighted correctly; fall back to the Splitwise identity.
   const { data: memberRows } = await supabase
     .from("memberships")

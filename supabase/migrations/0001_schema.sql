@@ -1,4 +1,4 @@
--- Circles — core schema
+-- Socius — core schema
 -- Mirrors the data model in the MVP spec. Soft deletes everywhere:
 -- nothing a vote, RSVP or entry points at is ever hard-deleted.
 

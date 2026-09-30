@@ -37,7 +37,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
 
   const groupIds = (memberships ?? []).map((m) => m.group_id);
   if (groupIds.length === 0) {
-    return ics(buildIcs("Circles", []));
+    return ics(buildIcs("Socius", []));
   }
 
   // Six months back is enough history for a calendar client without
@@ -55,7 +55,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
   const events: IcsEvent[] = (rows ?? []).map((e) => {
     const group = Array.isArray(e.friend_groups) ? e.friend_groups[0] : e.friend_groups;
     return {
-      uid: `${e.id}@circles`,
+      uid: `${e.id}@socius`,
       start: e.confirmed_time as string,
       end: e.ends_at,
       title: group?.name ? `${e.title} · ${group.name}` : e.title,
@@ -65,14 +65,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     };
   });
 
-  return ics(buildIcs(`Circles · ${profile.name}`, events));
+  return ics(buildIcs(`Socius · ${profile.name}`, events));
 }
 
 function ics(body: string) {
   return new NextResponse(body, {
     headers: {
       "Content-Type": "text/calendar; charset=utf-8",
-      "Content-Disposition": 'inline; filename="circles.ics"',
+      "Content-Disposition": 'inline; filename="socius.ics"',
       // Personal, and clients poll on their own schedule anyway.
       "Cache-Control": "private, max-age=300",
     },
