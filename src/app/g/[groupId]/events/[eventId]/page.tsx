@@ -8,6 +8,8 @@ import { addCar, updateCar, removeCar, addPassenger, takeSeat, removePassenger }
 import { setBehavior, addCohost, removeCohost } from "@/app/actions/behavior";
 import { addJoke, removeJoke } from "@/app/actions/jokes";
 import { setTripBudget, addTripItem, setTripItemStatus, removeTripItem } from "@/app/actions/trips";
+import { addItineraryItem, updateItineraryItem, removeItineraryItem, moveItineraryItem } from "@/app/actions/itinerary";
+import { addPotluckItem, claimPotluckItem, unclaimPotluckItem, removePotluckItem } from "@/app/actions/potluck";
 import { saveAvailability } from "@/app/actions/availability";
 import { TRIP_KINDS, kindLabel, money, perPersonEstimate } from "@/lib/trip";
 import { createTally, deleteTally, logTally, undoTally, setTallyOptOut } from "@/app/actions/tallies";
@@ -57,6 +59,8 @@ export default async function EventPage({
     { data: tallyPaxRows },
     group,
     { data: gameRows },
+    { data: itineraryRows },
+    { data: potluckRows },
   ] = await Promise.all([
     supabase
       .from("events")
@@ -80,6 +84,8 @@ export default async function EventPage({
     supabase.from("tally_participants").select("tally_id, user_id, opted_out_at"),
     getGroup(groupId),
     supabase.from("games").select("id, status, created_at").eq("event_id", eventId).is("deleted_at", null).order("created_at", { ascending: false }),
+    supabase.from("event_itinerary").select("*").eq("event_id", eventId).order("position").order("starts_at", { nullsFirst: false }),
+    supabase.from("event_potluck").select("*").eq("event_id", eventId).order("created_at"),
   ]);
   const behaviorEnabled = group.behavior_enabled && hasFeature(group.type, "behavior");
   const showTallies = hasFeature(group.type, "tallies");
@@ -198,6 +204,18 @@ export default async function EventPage({
   const estimate = perPersonEstimate(tripItems, goingCount);
   const budget = event.budget_per_person != null ? Number(event.budget_per_person) : null;
 
+  const itinerary = (itineraryRows ?? []) as {
+    id: string; title: string; starts_at: string | null; ends_at: string | null;
+    location: string | null; notes: string | null; position: number; created_by: string;
+  }[];
+
+  const potluck = (potluckRows ?? []) as {
+    id: string; title: string; note: string | null;
+    claimed_by: string | null; created_by: string;
+  }[];
+  const claimedItems = potluck.filter((p) => p.claimed_by);
+  const unclaimedItems = potluck.filter((p) => !p.claimed_by);
+
   const tallies = tallyRows ?? [];
   const tallyIds = new Set(tallies.map((t) => t.id));
   // RLS already limits these to groups you belong to; narrow to this event.
@@ -247,6 +265,88 @@ export default async function EventPage({
             )}
           </form>
         </Disclosure>
+      )}
+
+      {event.status !== "cancelled" && (
+        <section className="flex flex-col gap-2.5">
+          <SectionHead
+            title="Itinerary"
+            right={itinerary.length > 0 ? <span className="text-[12.5px] text-ink-3">{itinerary.length} item{itinerary.length === 1 ? "" : "s"}</span> : null}
+          />
+
+          {itinerary.length > 0 && (
+            <Card>
+              {itinerary.map((item, idx) => (
+                <div key={item.id} className="px-3.5 py-3 border-b border-line last:border-b-0 flex flex-col gap-1.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                      <span className="w-6 h-6 rounded-full bg-accent-soft text-accent text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                        {idx + 1}
+                      </span>
+                      <div className="flex flex-col gap-0.5 min-w-0">
+                        <span className="font-semibold text-[14.5px] leading-tight">{item.title}</span>
+                        <div className="flex gap-2.5 flex-wrap font-mono text-[12.5px] text-ink-2">
+                          {item.starts_at && (
+                            <span>
+                              {fmtTime(item.starts_at)}
+                              {item.ends_at && <> – {fmtTime(item.ends_at)}</>}
+                            </span>
+                          )}
+                          {item.location && <span>{item.location}</span>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {idx > 0 && (
+                        <form action={moveItineraryItem.bind(null, groupId, eventId, item.id, "up")}>
+                          <button type="submit" aria-label="Move up" className="text-ink-3 hover:text-ink text-[14px] leading-none p-1">↑</button>
+                        </form>
+                      )}
+                      {idx < itinerary.length - 1 && (
+                        <form action={moveItineraryItem.bind(null, groupId, eventId, item.id, "down")}>
+                          <button type="submit" aria-label="Move down" className="text-ink-3 hover:text-ink text-[14px] leading-none p-1">↓</button>
+                        </form>
+                      )}
+                    </div>
+                  </div>
+                  {item.notes && <p className="text-[12.5px] text-ink-2 pl-[34px]">{item.notes}</p>}
+
+                  <details className="pl-[34px]">
+                    <summary className="text-[12px] text-accent cursor-pointer list-none [&::-webkit-details-marker]:hidden">Edit</summary>
+                    <div className="pt-2 flex flex-col gap-2">
+                      <form action={updateItineraryItem.bind(null, groupId, eventId, item.id)} className="flex flex-col gap-2">
+                        <Field label="What"><input name="title" required maxLength={120} defaultValue={item.title} /></Field>
+                        <div className="flex gap-2.5">
+                          <span className="flex-1 min-w-0"><Field label="Starts"><input name="starts_at" type="datetime-local" defaultValue={toInput(item.starts_at)} /></Field></span>
+                          <span className="flex-1 min-w-0"><Field label="Ends"><input name="ends_at" type="datetime-local" defaultValue={toInput(item.ends_at)} /></Field></span>
+                        </div>
+                        <Field label="Where"><input name="location" maxLength={120} defaultValue={item.location ?? ""} /></Field>
+                        <Field label="Notes"><input name="notes" maxLength={200} defaultValue={item.notes ?? ""} /></Field>
+                        <SubmitButton size="sm" pendingLabel="Saving…">Save</SubmitButton>
+                      </form>
+                      <form action={removeItineraryItem.bind(null, groupId, eventId, item.id)}>
+                        <button type="submit" className="text-[12.5px] text-ink-3 hover:text-no">Remove</button>
+                      </form>
+                    </div>
+                  </details>
+                </div>
+              ))}
+            </Card>
+          )}
+
+          <Disclosure label={itinerary.length ? "Add to itinerary" : "Start an itinerary"}>
+            <form action={addItineraryItem.bind(null, groupId, eventId)} className="flex flex-col gap-3">
+              <Field label="What's happening"><input name="title" required maxLength={120} placeholder="Arrive at the cabin" /></Field>
+              <div className="flex gap-2.5">
+                <span className="flex-1 min-w-0"><Field label="Starts"><input name="starts_at" type="datetime-local" /></Field></span>
+                <span className="flex-1 min-w-0"><Field label="Ends (optional)"><input name="ends_at" type="datetime-local" /></Field></span>
+              </div>
+              <Field label="Where (optional)"><input name="location" maxLength={120} placeholder="123 Lakeside Dr" /></Field>
+              <Field label="Notes (optional)"><input name="notes" maxLength={200} placeholder="Bring your own towels" /></Field>
+              <SubmitButton className="w-full" pendingLabel="Adding…">Add to itinerary</SubmitButton>
+            </form>
+          </Disclosure>
+        </section>
       )}
 
       {isTrip && event.status !== "cancelled" && (
@@ -560,6 +660,89 @@ export default async function EventPage({
               )}
             </div>
           </Card>
+
+          {/* ── Potluck ──────────────────────────────────────────────── */}
+          <section className="flex flex-col gap-2.5">
+            <SectionHead
+              title="Who's bringing what"
+              right={potluck.length > 0 ? <span className="text-[12.5px] text-ink-3">{claimedItems.length} claimed · {unclaimedItems.length} open</span> : null}
+            />
+
+            {unclaimedItems.length > 0 && (
+              <Card>
+                <div className="px-3.5 py-2 border-b border-line bg-surface-2">
+                  <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-ink-3">Needs someone</span>
+                </div>
+                {unclaimedItems.map((item) => (
+                  <div key={item.id} className="px-3.5 py-3 border-b border-line last:border-b-0 flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[14.5px] font-semibold">{item.title}</span>
+                      {item.note && <p className="text-[12.5px] text-ink-2">{item.note}</p>}
+                      <span className="text-[12px] text-ink-3">added by {nameOf(item.created_by)}</span>
+                    </div>
+                    <div className="flex gap-2 items-center shrink-0">
+                      <form action={claimPotluckItem.bind(null, groupId, eventId, item.id)}>
+                        <SubmitButton size="sm" pendingLabel="Claiming…">I got it</SubmitButton>
+                      </form>
+                      {(item.created_by === user.id || canManage) && (
+                        <form action={removePotluckItem.bind(null, groupId, eventId, item.id)}>
+                          <button type="submit" aria-label="Remove" className="text-ink-3 hover:text-no text-[14px] leading-none">×</button>
+                        </form>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </Card>
+            )}
+
+            {claimedItems.length > 0 && (
+              <Card>
+                <div className="px-3.5 py-2 border-b border-line bg-surface-2">
+                  <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-ink-3">Claimed</span>
+                </div>
+                {claimedItems.map((item) => {
+                  const isMine = item.claimed_by === user.id;
+                  return (
+                    <div key={item.id} className="px-3.5 py-3 border-b border-line last:border-b-0 flex items-center gap-3">
+                      <Avatar id={item.claimed_by!} name={nameOf(item.claimed_by!)} src={faceOf(item.claimed_by!)} size={28} />
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[14.5px]">
+                          <span className="font-semibold">{item.title}</span>
+                          <span className="text-ink-2"> — {isMine ? "you" : nameOf(item.claimed_by!)}</span>
+                        </span>
+                        {item.note && <p className="text-[12.5px] text-ink-2">{item.note}</p>}
+                      </div>
+                      {isMine && (
+                        <form action={unclaimPotluckItem.bind(null, groupId, eventId, item.id)}>
+                          <SubmitButton size="sm" variant="ghost" pendingLabel="…">Never mind</SubmitButton>
+                        </form>
+                      )}
+                      {(item.created_by === user.id || canManage) && (
+                        <form action={removePotluckItem.bind(null, groupId, eventId, item.id)}>
+                          <button type="submit" aria-label="Remove" className="text-ink-3 hover:text-no text-[14px] leading-none">×</button>
+                        </form>
+                      )}
+                    </div>
+                  );
+                })}
+              </Card>
+            )}
+
+            <Disclosure label={potluck.length ? "Add something" : "Start the list"}>
+              <form action={addPotluckItem.bind(null, groupId, eventId)} className="flex flex-col gap-3">
+                <Field label="What's needed"><input name="title" required maxLength={120} placeholder="Chips and guac" /></Field>
+                <Field label="Note (optional)"><input name="note" maxLength={200} placeholder="Store-bought is fine" /></Field>
+                <label className="flex items-center gap-2 text-[13.5px]">
+                  <input type="checkbox" name="claim_self" defaultChecked className="w-4 h-4" />
+                  I'm bringing this
+                </label>
+                <p className="text-[12px] text-ink-2">
+                  Uncheck to post it as an open item for someone else to claim.
+                </p>
+                <SubmitButton className="w-full" pendingLabel="Adding…">Add to the list</SubmitButton>
+              </form>
+            </Disclosure>
+          </section>
 
           {/* ── Getting there ─────────────────────────────────────────── */}
           <section className="flex flex-col gap-2.5">
