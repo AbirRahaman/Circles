@@ -91,7 +91,7 @@ export function Avatar({ id, name, src, size = 30 }: {
   }
   return (
     <span
-      className="rounded-full grid place-items-center text-white font-display font-bold shrink-0"
+      className="rounded-full grid place-items-center text-white font-sans font-bold shrink-0"
       style={{ width: size, height: size, fontSize: size * 0.4, background: colorFor(id) }}
       title={name}
     >

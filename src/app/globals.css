@@ -2,8 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Redesign · warm serif headings, sage-green accent ───────────────
-   Fraunces for display, Plus Jakarta Sans for body. Sage green accent
+/* ── Redesign · warm serif headings, ocean-teal accent ───────────────
+   Fraunces for display, Plus Jakarta Sans for body. Ocean teal accent
    gives it warmth — feels like friends, not a project manager.
    Borders carry structure; shadows are subtle depth cues. */
 
@@ -17,9 +17,9 @@
   --ink: #1A1D2B;
   --ink-2: #5C6070;
   --ink-3: #9499A5;
-  --accent: #3D7A5F;
+  --accent: #1A7A72;
   --accent-ink: #FFFFFF;
-  --accent-soft: #E6F0EB;
+  --accent-soft: #E0F2F0;
   --go: #2E7D4F; --go-soft: #E2F1E9;
   --maybe: #B8862A; --maybe-soft: #F4ECDA;
   --no: #C05252; --no-soft: #F8E9E7;
@@ -38,9 +38,9 @@
     --ink: #E4E5EB;
     --ink-2: #A4A8B4;
     --ink-3: #7A7E8A;
-    --accent: #5DA882;
-    --accent-ink: #0E1E16;
-    --accent-soft: #1A2E24;
+    --accent: #2DB5A8;
+    --accent-ink: #0E1E1E;
+    --accent-soft: #142E2B;
     --go: #5FBE86; --go-soft: #162A1F;
     --maybe: #D8A75E; --maybe-soft: #2E2518;
     --no: #E0807A; --no-soft: #2E1C1A;
