@@ -35,6 +35,7 @@ export type GroupEvent = {
   confirmed_time: string | null;
   ends_at: string | null;
   budget_per_person: number | null;
+  potluck_enabled: boolean;
   created_at: string;
 };
 

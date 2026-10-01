@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireMembership, getGroup } from "@/lib/auth";
 import { hasFeature } from "@/lib/groupTypes";
-import { confirmTime, cancelEvent, updateEvent, confirmPlan, unconfirmPlan, setPlanWindow } from "@/app/actions/events";
+import { confirmTime, cancelEvent, updateEvent, confirmPlan, unconfirmPlan, setPlanWindow, togglePotluck } from "@/app/actions/events";
 import { addAlbumLink, removeAlbumLink } from "@/app/actions/albums";
 import { addCar, updateCar, removeCar, addPassenger, takeSeat, removePassenger } from "@/app/actions/rides";
 import { setBehavior, addCohost, removeCohost } from "@/app/actions/behavior";
@@ -148,11 +148,13 @@ export default async function EventPage({
   const avail = (availRows ?? []) as { user_id: string; unavailable: string[] | null; note: string | null }[];
   const myAvail = avail.find((a) => a.user_id === user.id) ?? null;
 
-  // Fall back to a fortnight around the proposed date if no window is stored.
+  // Fall back to a fortnight around the proposed date if no window is stored,
+  // or the next 30 days if no date was suggested at all.
+  const todayKey = addDay(new Date().toISOString().slice(0, 10), 0);
   const winFrom = (event.window_start as string | null)
-    ?? (event.confirmed_time ? addDay(toInput(event.confirmed_time).slice(0, 10), -7) : null);
+    ?? (event.confirmed_time ? addDay(toInput(event.confirmed_time).slice(0, 10), -7) : todayKey);
   const winTo = (event.window_end as string | null)
-    ?? (event.confirmed_time ? addDay(toInput(event.ends_at ?? event.confirmed_time).slice(0, 10), 14) : null);
+    ?? (event.confirmed_time ? addDay(toInput(event.ends_at ?? event.confirmed_time).slice(0, 10), 14) : addDay(todayKey, 30));
 
   const windowDays: string[] = [];
   if (isSearch && winFrom && winTo) {
@@ -238,7 +240,9 @@ export default async function EventPage({
           {event.status === "confirmed" && <Pill tone="go" dot>Confirmed</Pill>}
           {event.status === "cancelled" && <Pill tone="no" dot>Cancelled</Pill>}
           {isUnderway(event.confirmed_time, event.ends_at) && <Pill tone="accent" dot>Happening now</Pill>}
-          {event.confirmed_time && <Pill><span className="font-mono">{fmtRange(event.confirmed_time, event.ends_at)}</span></Pill>}
+          {event.confirmed_time
+            ? <Pill><span className="font-mono">{fmtRange(event.confirmed_time, event.ends_at)}</span></Pill>
+            : isPending && <Pill tone="plain">No date yet</Pill>}
           {event.location && <Pill>{event.location}</Pill>}
         </div>
         {event.notes && <p className="text-[13.5px] text-ink-2">{event.notes}</p>}
@@ -252,9 +256,9 @@ export default async function EventPage({
             <Field label="Where"><input name="location" maxLength={60} defaultValue={event.location ?? ""} /></Field>
             <Field label="Notes"><textarea name="notes" rows={3} defaultValue={event.notes ?? ""} /></Field>
             {event.status === "confirmed" && (
-              <div className="flex gap-2.5">
-                <span className="flex-1 min-w-0"><Field label="Starts"><input name="when" type="datetime-local" defaultValue={toInput(event.confirmed_time)} /></Field></span>
-                <span className="flex-1 min-w-0"><Field label="Ends (optional)"><input name="ends" type="datetime-local" defaultValue={toInput(event.ends_at)} /></Field></span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <Field label="Starts"><input name="when" type="datetime-local" defaultValue={toInput(event.confirmed_time)} /></Field>
+                <Field label="Ends (optional)"><input name="ends" type="datetime-local" defaultValue={toInput(event.ends_at)} /></Field>
               </div>
             )}
             <SubmitButton className="w-full" pendingLabel="Saving…">Save changes</SubmitButton>
@@ -543,13 +547,15 @@ export default async function EventPage({
             <>
               <Disclosure label="Lock it in">
                 <form action={confirmPlan.bind(null, groupId, eventId)} className="flex flex-col gap-3">
-                  <div className="flex gap-2.5">
-                    <span className="flex-1 min-w-0"><Field label="Starts"><input name="when" type="datetime-local" required defaultValue={toInput(event.confirmed_time)} /></Field></span>
-                    <span className="flex-1 min-w-0"><Field label="Ends (optional)"><input name="ends" type="datetime-local" defaultValue={toInput(event.ends_at)} /></Field></span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <Field label="Starts"><input name="when" type="datetime-local" required defaultValue={toInput(event.confirmed_time)} /></Field>
+                    <Field label="Ends (optional)"><input name="ends" type="datetime-local" defaultValue={toInput(event.ends_at)} /></Field>
                   </div>
                   <SubmitButton className="w-full" pendingLabel="Locking in…">Confirm these dates</SubmitButton>
                   <p className="text-[12px] text-ink-2">
-                    Pre-filled with what was proposed — change it to whatever the grid says works.
+                    {event.confirmed_time
+                      ? "Pre-filled with what was proposed — change it to whatever the grid says works."
+                      : "Pick the date the group settled on."}{" "}
                     Confirming opens RSVPs.
                   </p>
                 </form>
@@ -557,9 +563,9 @@ export default async function EventPage({
 
               <Disclosure label="Look at a different stretch of dates">
                 <form action={setPlanWindow.bind(null, groupId, eventId)} className="flex flex-col gap-3">
-                  <div className="flex gap-2.5">
-                    <span className="flex-1 min-w-0"><Field label="From"><input name="window_start" type="date" required defaultValue={winFrom ?? ""} /></Field></span>
-                    <span className="flex-1 min-w-0"><Field label="To"><input name="window_end" type="date" required defaultValue={winTo ?? ""} /></Field></span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <Field label="From"><input name="window_start" type="date" required defaultValue={winFrom ?? ""} /></Field>
+                    <Field label="To"><input name="window_end" type="date" required defaultValue={winTo ?? ""} /></Field>
                   </div>
                   <SubmitButton className="w-full" pendingLabel="Updating…">Update the window</SubmitButton>
                 </form>
@@ -662,87 +668,104 @@ export default async function EventPage({
           </Card>
 
           {/* ── Potluck ──────────────────────────────────────────────── */}
-          <section className="flex flex-col gap-2.5">
-            <SectionHead
-              title="Who's bringing what"
-              right={potluck.length > 0 ? <span className="text-[12.5px] text-ink-3">{claimedItems.length} claimed · {unclaimedItems.length} open</span> : null}
-            />
-
-            {unclaimedItems.length > 0 && (
-              <Card>
-                <div className="px-3.5 py-2 border-b border-line bg-surface-2">
-                  <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-ink-3">Needs someone</span>
-                </div>
-                {unclaimedItems.map((item) => (
-                  <div key={item.id} className="px-3.5 py-3 border-b border-line last:border-b-0 flex items-center gap-3">
-                    <div className="flex-1 min-w-0">
-                      <span className="text-[14.5px] font-semibold">{item.title}</span>
-                      {item.note && <p className="text-[12.5px] text-ink-2">{item.note}</p>}
-                      <span className="text-[12px] text-ink-3">added by {nameOf(item.created_by)}</span>
-                    </div>
-                    <div className="flex gap-2 items-center shrink-0">
-                      <form action={claimPotluckItem.bind(null, groupId, eventId, item.id)}>
-                        <SubmitButton size="sm" pendingLabel="Claiming…">I got it</SubmitButton>
+          {event.potluck_enabled ? (
+            <section className="flex flex-col gap-2.5">
+              <SectionHead
+                title="Who's bringing what"
+                right={
+                  <span className="flex items-center gap-2.5">
+                    {potluck.length > 0 && <span className="text-[12.5px] text-ink-3">{claimedItems.length} claimed · {unclaimedItems.length} open</span>}
+                    {canManage && (
+                      <form action={togglePotluck.bind(null, groupId, eventId)}>
+                        <button type="submit" className="text-[12px] text-ink-3 hover:text-no">Turn off</button>
                       </form>
-                      {(item.created_by === user.id || canManage) && (
-                        <form action={removePotluckItem.bind(null, groupId, eventId, item.id)}>
-                          <button type="submit" aria-label="Remove" className="text-ink-3 hover:text-no text-[14px] leading-none">×</button>
-                        </form>
-                      )}
-                    </div>
+                    )}
+                  </span>
+                }
+              />
+
+              {unclaimedItems.length > 0 && (
+                <Card>
+                  <div className="px-3.5 py-2 border-b border-line bg-surface-2">
+                    <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-ink-3">Needs someone</span>
                   </div>
-                ))}
-              </Card>
-            )}
-
-            {claimedItems.length > 0 && (
-              <Card>
-                <div className="px-3.5 py-2 border-b border-line bg-surface-2">
-                  <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-ink-3">Claimed</span>
-                </div>
-                {claimedItems.map((item) => {
-                  const isMine = item.claimed_by === user.id;
-                  return (
+                  {unclaimedItems.map((item) => (
                     <div key={item.id} className="px-3.5 py-3 border-b border-line last:border-b-0 flex items-center gap-3">
-                      <Avatar id={item.claimed_by!} name={nameOf(item.claimed_by!)} src={faceOf(item.claimed_by!)} size={28} />
                       <div className="flex-1 min-w-0">
-                        <span className="text-[14.5px]">
-                          <span className="font-semibold">{item.title}</span>
-                          <span className="text-ink-2"> — {isMine ? "you" : nameOf(item.claimed_by!)}</span>
-                        </span>
+                        <span className="text-[14.5px] font-semibold">{item.title}</span>
                         {item.note && <p className="text-[12.5px] text-ink-2">{item.note}</p>}
+                        <span className="text-[12px] text-ink-3">added by {nameOf(item.created_by)}</span>
                       </div>
-                      {isMine && (
-                        <form action={unclaimPotluckItem.bind(null, groupId, eventId, item.id)}>
-                          <SubmitButton size="sm" variant="ghost" pendingLabel="…">Never mind</SubmitButton>
+                      <div className="flex gap-2 items-center shrink-0">
+                        <form action={claimPotluckItem.bind(null, groupId, eventId, item.id)}>
+                          <SubmitButton size="sm" pendingLabel="Claiming…">I got it</SubmitButton>
                         </form>
-                      )}
-                      {(item.created_by === user.id || canManage) && (
-                        <form action={removePotluckItem.bind(null, groupId, eventId, item.id)}>
-                          <button type="submit" aria-label="Remove" className="text-ink-3 hover:text-no text-[14px] leading-none">×</button>
-                        </form>
-                      )}
+                        {(item.created_by === user.id || canManage) && (
+                          <form action={removePotluckItem.bind(null, groupId, eventId, item.id)}>
+                            <button type="submit" aria-label="Remove" className="text-ink-3 hover:text-no text-[14px] leading-none">×</button>
+                          </form>
+                        )}
+                      </div>
                     </div>
-                  );
-                })}
-              </Card>
-            )}
+                  ))}
+                </Card>
+              )}
 
-            <Disclosure label={potluck.length ? "Add something" : "Start the list"}>
-              <form action={addPotluckItem.bind(null, groupId, eventId)} className="flex flex-col gap-3">
-                <Field label="What's needed"><input name="title" required maxLength={120} placeholder="Chips and guac" /></Field>
-                <Field label="Note (optional)"><input name="note" maxLength={200} placeholder="Store-bought is fine" /></Field>
-                <label className="flex items-center gap-2 text-[13.5px]">
-                  <input type="checkbox" name="claim_self" defaultChecked className="w-4 h-4" />
-                  I'm bringing this
-                </label>
-                <p className="text-[12px] text-ink-2">
-                  Uncheck to post it as an open item for someone else to claim.
-                </p>
-                <SubmitButton className="w-full" pendingLabel="Adding…">Add to the list</SubmitButton>
-              </form>
-            </Disclosure>
-          </section>
+              {claimedItems.length > 0 && (
+                <Card>
+                  <div className="px-3.5 py-2 border-b border-line bg-surface-2">
+                    <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-ink-3">Claimed</span>
+                  </div>
+                  {claimedItems.map((item) => {
+                    const isMine = item.claimed_by === user.id;
+                    return (
+                      <div key={item.id} className="px-3.5 py-3 border-b border-line last:border-b-0 flex items-center gap-3">
+                        <Avatar id={item.claimed_by!} name={nameOf(item.claimed_by!)} src={faceOf(item.claimed_by!)} size={28} />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-[14.5px]">
+                            <span className="font-semibold">{item.title}</span>
+                            <span className="text-ink-2"> — {isMine ? "you" : nameOf(item.claimed_by!)}</span>
+                          </span>
+                          {item.note && <p className="text-[12.5px] text-ink-2">{item.note}</p>}
+                        </div>
+                        {isMine && (
+                          <form action={unclaimPotluckItem.bind(null, groupId, eventId, item.id)}>
+                            <SubmitButton size="sm" variant="ghost" pendingLabel="…">Never mind</SubmitButton>
+                          </form>
+                        )}
+                        {(item.created_by === user.id || canManage) && (
+                          <form action={removePotluckItem.bind(null, groupId, eventId, item.id)}>
+                            <button type="submit" aria-label="Remove" className="text-ink-3 hover:text-no text-[14px] leading-none">×</button>
+                          </form>
+                        )}
+                      </div>
+                    );
+                  })}
+                </Card>
+              )}
+
+              <Disclosure label={potluck.length ? "Add something" : "Start the list"}>
+                <form action={addPotluckItem.bind(null, groupId, eventId)} className="flex flex-col gap-3">
+                  <Field label="What's needed"><input name="title" required maxLength={120} placeholder="Chips and guac" /></Field>
+                  <Field label="Note (optional)"><input name="note" maxLength={200} placeholder="Store-bought is fine" /></Field>
+                  <label className="flex items-center gap-2 text-[13.5px]">
+                    <input type="checkbox" name="claim_self" defaultChecked className="w-4 h-4" />
+                    I'm bringing this
+                  </label>
+                  <p className="text-[12px] text-ink-2">
+                    Uncheck to post it as an open item for someone else to claim.
+                  </p>
+                  <SubmitButton className="w-full" pendingLabel="Adding…">Add to the list</SubmitButton>
+                </form>
+              </Disclosure>
+            </section>
+          ) : canManage && (
+            <form action={togglePotluck.bind(null, groupId, eventId)}>
+              <SubmitButton variant="ghost" size="sm" pendingLabel="Enabling…" className="w-full">
+                Enable potluck sign-ups
+              </SubmitButton>
+            </form>
+          )}
 
           {/* ── Getting there ─────────────────────────────────────────── */}
           <section className="flex flex-col gap-2.5">

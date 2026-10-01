@@ -1,7 +1,7 @@
 {
   "name": "Socius",
   "short_name": "Socius",
-  "description": "Plans, money, photos and challenges for your friend group.",
+  "description": "Where plans make it out the group chat.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#F4F5F9",

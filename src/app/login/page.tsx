@@ -34,7 +34,7 @@ export default function LoginPage() {
         <div className="flex flex-col gap-1.5 px-1">
           <span className="w-11 h-11 rounded-xl bg-accent text-accent-ink grid place-items-center font-display font-extrabold text-xl">S</span>
           <h1 className="font-display font-extrabold text-2xl mt-2">Socius</h1>
-          <p className="text-[14px] text-ink-2">Plans, money, photos and challenges — one place per friend group.</p>
+          <p className="text-[14px] text-ink-2">Where plans make it out the group chat.</p>
         </div>
 
         <Card className="p-3.5">

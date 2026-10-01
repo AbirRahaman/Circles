@@ -4,6 +4,7 @@ import { hasFeature } from "@/lib/groupTypes";
 import { createPlan } from "@/app/actions/events";
 import { Card, Field, Note } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
+import { NewPlanDateFields } from "@/components/NewPlanDateFields";
 import { inputFor, groupToday } from "@/lib/format";
 import { fetchBusyDays } from "@/lib/busy";
 
@@ -93,37 +94,10 @@ export default async function NewPlanPage({
             <input name="title" required maxLength={60} placeholder={titleHint} />
           </Field>
 
-          <div className="flex gap-2.5">
-            {trips ? (
-              <span className="flex-1 min-w-0">
-                <Field label="Kind">
-                  <select name="kind" defaultValue="outing">
-                    <option value="outing">An outing</option>
-                    <option value="trip">A trip</option>
-                  </select>
-                </Field>
-              </span>
-            ) : (
-              <input type="hidden" name="kind" value="outing" />
-            )}
-            <span className="flex-1 min-w-0">
-              <Field label="Is it settled?">
-                <select name="settled" defaultValue="yes">
-                  <option value="yes">Locked in</option>
-                  <option value="no">Still being decided</option>
-                </select>
-              </Field>
-            </span>
-          </div>
-
-          <div className="flex gap-2.5">
-            <span className="flex-1 min-w-0">
-              <Field label="Starts"><input name="when" type="datetime-local" required defaultValue={startDefault} /></Field>
-            </span>
-            <span className="flex-1 min-w-0">
-              <Field label="Ends"><input name="ends" type="datetime-local" /></Field>
-            </span>
-          </div>
+          <NewPlanDateFields
+            trips={trips}
+            startDefault={startDefault}
+          />
 
           <Field label="Where (optional)">
             <input name="location" maxLength={60} placeholder="Mohonk, NY" />
@@ -132,6 +106,11 @@ export default async function NewPlanPage({
           <Field label="Notes (optional)">
             <textarea name="notes" rows={3} placeholder="Who's driving, what to bring, why now…" />
           </Field>
+
+          <label className="flex items-center gap-2.5 text-[13.5px]">
+            <input type="checkbox" name="potluck" className="w-4 h-4 accent-[var(--accent)]" />
+            People are bringing things (potluck)
+          </label>
 
           {trips && (
             <Field label="Budget per person — trips only (optional)">
@@ -144,12 +123,10 @@ export default async function NewPlanPage({
       </Card>
 
       <Note>
-        <strong>Locked in</strong> records something you&rsquo;ve already agreed — RSVPs open
-        straight away. <strong>Still being decided</strong> creates it as pending and opens the
-        scheduling assistant on the plan, where everyone marks the days they can&rsquo;t do.
-        The strip above is the first pass — existing commitments, known before anyone answers.
-        The assistant on the plan is the second: people saying what actually works, which needs
-        a plan to say it about.
+        <strong>Locked in</strong> records something you&rsquo;ve already agreed on — RSVPs open
+        straight away. <strong>Still being decided</strong> creates a proposal where everyone
+        marks the days they can&rsquo;t do. You can suggest specific dates, a month, or leave
+        it completely open. Outings don&rsquo;t need an end date — that&rsquo;s a trip thing.
       </Note>
     </>
   );

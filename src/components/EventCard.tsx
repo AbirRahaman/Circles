@@ -36,7 +36,7 @@ export function EventCard({ groupId, event: e, muted = false }: { groupId: strin
   const meta =
     e.status === "proposed"
       ? e.optionCount === 0
-        ? [e.confirmed_time ? fmtRange(e.confirmed_time, e.ends_at) : "", "not locked in yet"].filter(Boolean).join(" · ")
+        ? [e.confirmed_time ? fmtRange(e.confirmed_time, e.ends_at) : "no date yet", "finding a time"].filter(Boolean).join(" · ")
         : `${e.optionCount} time options · ${e.votedCount} of ${e.memberCount} voted`
       : e.confirmed_time
         ? [fmtRange(e.confirmed_time, e.ends_at), underway ? "" : countdown(e.confirmed_time)]
