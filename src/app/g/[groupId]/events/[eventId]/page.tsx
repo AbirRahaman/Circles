@@ -281,6 +281,32 @@ export default async function EventPage({
         </Disclosure>
       )}
 
+      {/* ── Invite guests ─────────────────────────────────────────── */}
+      {event.status !== "cancelled" && (
+        <Card className="p-3.5 flex flex-col gap-3">
+          <h2 className="text-[12.5px] font-semibold uppercase tracking-[0.06em] text-ink-2">Invite guests</h2>
+          <InviteLinkSection
+            groupId={groupId}
+            eventId={eventId}
+            existingToken={inviteLink?.token ?? null}
+            isActive={inviteLink?.active ?? false}
+            baseUrl={baseUrl}
+          />
+          {guestRsvps.some((r) => r.contact) && canManage && (
+            <details>
+              <summary className="text-[12.5px] text-accent cursor-pointer list-none [&::-webkit-details-marker]:hidden">View guest contact info</summary>
+              <div className="pt-2 flex flex-col gap-1.5">
+                {guestRsvps.filter((r) => r.contact).map((r) => (
+                  <div key={r.id} className="text-[13px] text-ink-2">
+                    <span className="font-semibold text-ink">{r.name}:</span> {r.contact}
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+        </Card>
+      )}
+
       {event.status !== "cancelled" && (
         <section className="flex flex-col gap-2.5">
           <SectionHead
@@ -805,32 +831,6 @@ export default async function EventPage({
               )}
             </div>
           </Card>
-
-          {/* ── Invite link ───────────────────────────────────────────── */}
-          {event.status !== "cancelled" && (
-            <Card className="p-3.5 flex flex-col gap-3">
-              <h2 className="text-[12.5px] font-semibold uppercase tracking-[0.06em] text-ink-2">Invite guests</h2>
-              <InviteLinkSection
-                groupId={groupId}
-                eventId={eventId}
-                existingToken={inviteLink?.token ?? null}
-                isActive={inviteLink?.active ?? false}
-                baseUrl={baseUrl}
-              />
-              {guestRsvps.some((r) => r.contact) && canManage && (
-                <details>
-                  <summary className="text-[12.5px] text-accent cursor-pointer list-none [&::-webkit-details-marker]:hidden">View guest contact info</summary>
-                  <div className="pt-2 flex flex-col gap-1.5">
-                    {guestRsvps.filter((r) => r.contact).map((r) => (
-                      <div key={r.id} className="text-[13px] text-ink-2">
-                        <span className="font-semibold text-ink">{r.name}:</span> {r.contact}
-                      </div>
-                    ))}
-                  </div>
-                </details>
-              )}
-            </Card>
-          )}
 
           {/* ── Getting there ─────────────────────────────────────────── */}
           <section className="flex flex-col gap-2.5">
