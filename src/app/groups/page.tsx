@@ -68,6 +68,29 @@ export default async function GroupsPage() {
           </section>
         )}
 
+        {/* Quick play — ad-hoc games without a group */}
+        <Link
+          href="/play"
+          className="flex items-center gap-3 rounded-xl border border-line bg-surface px-3.5 py-3 shadow-card hover:bg-surface-2 transition-colors"
+        >
+          <div className="w-9 h-9 rounded-lg bg-accent-soft flex items-center justify-center shrink-0">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--accent)" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="3.5" />
+              <circle cx="8.5" cy="8.5" r="1.3" />
+              <circle cx="15.5" cy="15.5" r="1.3" />
+              <circle cx="15.5" cy="8.5" r="1.3" />
+              <circle cx="8.5" cy="15.5" r="1.3" />
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="font-semibold text-[14.5px]">Play a game</div>
+            <div className="text-[12.5px] text-ink-2">Start a card game and share the link with anyone</div>
+          </div>
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="text-ink-3 shrink-0">
+            <path d="M9 6l6 6-6 6" />
+          </svg>
+        </Link>
+
         <Disclosure label="Start another group">
           <form action={createGroup} className="flex flex-col gap-3">
             <Field label="Group name"><input name="name" placeholder="Ski trip crew" maxLength={48} required /></Field>
