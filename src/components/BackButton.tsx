@@ -8,15 +8,12 @@ export function BackButton({ fallback }: { fallback: string }) {
   return (
     <button
       onClick={() => {
-        // Read the actual browser URL at click time — usePathname() inside
-        // a layout client component can return stale values for child routes.
         const pathname = window.location.pathname;
         const groupBase = pathname.match(/^\/g\/[^/]+/)?.[0];
-        if (groupBase && pathname !== groupBase) {
-          router.push(groupBase);
-        } else {
-          router.push(fallback);
-        }
+        const target = groupBase && pathname !== groupBase ? groupBase : fallback;
+        // DEBUG — check browser console
+        console.log("[BackButton]", { pathname, groupBase, target, fallback });
+        router.push(target);
       }}
       aria-label="Back"
       className="w-8 h-8 grid place-items-center rounded-lg text-ink-2 hover:bg-surface-2 hover:text-ink"
