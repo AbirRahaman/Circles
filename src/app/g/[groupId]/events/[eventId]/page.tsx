@@ -663,7 +663,7 @@ export default async function EventPage({
                   </div>
                   {unclaimedItems.map((item) => (
                     <div key={item.id} className="px-3.5 py-3 border-b border-line last:border-b-0 flex items-center gap-3">
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                         <span className="text-[14.5px] font-semibold">{item.title}</span>
                         {item.note && <p className="text-[12.5px] text-ink-2">{item.note}</p>}
                         <span className="text-[12px] text-ink-3">added by {nameOf(item.created_by)}</span>
