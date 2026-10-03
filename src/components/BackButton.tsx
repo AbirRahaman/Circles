@@ -10,10 +10,11 @@ export function BackButton({ fallback }: { fallback: string }) {
       onClick={() => {
         const pathname = window.location.pathname;
         const groupBase = pathname.match(/^\/g\/[^/]+/)?.[0];
-        const target = groupBase && pathname !== groupBase ? groupBase : fallback;
-        // DEBUG — check browser console
-        console.log("[BackButton]", { pathname, groupBase, target, fallback });
-        router.push(target);
+        if (groupBase && pathname !== groupBase) {
+          router.push(groupBase);
+        } else {
+          router.push(fallback);
+        }
       }}
       aria-label="Back"
       className="w-8 h-8 grid place-items-center rounded-lg text-ink-2 hover:bg-surface-2 hover:text-ink"
