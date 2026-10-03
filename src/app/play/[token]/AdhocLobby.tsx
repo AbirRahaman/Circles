@@ -92,7 +92,7 @@ export function AdhocLobby({
           />
           <button
             onClick={copyLink}
-            className="rounded-lg bg-[var(--accent)] text-[var(--accent-ink)] px-4 py-2 text-[13.5px] font-semibold hover:opacity-90 transition-opacity shrink-0"
+            className="rounded-lg bg-[var(--accent)] text-[var(--accent-ink)] px-4 py-2 text-[13.5px] font-semibold btn-lift shrink-0"
           >
             {copied ? "Copied!" : "Copy"}
           </button>
@@ -150,7 +150,7 @@ export function AdhocLobby({
           <button
             type="submit"
             disabled={joinPending}
-            className="w-full rounded-lg bg-[var(--accent)] text-[var(--accent-ink)] font-semibold text-[15px] py-3 hover:opacity-90 disabled:opacity-45 transition-opacity"
+            className="w-full rounded-lg bg-[var(--accent)] text-[var(--accent-ink)] font-semibold text-[15px] py-3 btn-lift disabled:opacity-45"
           >
             {joinPending ? "Joining…" : "Join"}
           </button>
@@ -166,7 +166,7 @@ export function AdhocLobby({
           <button
             onClick={handleStart}
             disabled={starting || players.length < minPlayers}
-            className="w-full rounded-lg bg-[var(--accent)] text-[var(--accent-ink)] font-semibold text-[15px] py-3 hover:opacity-90 disabled:opacity-45 transition-opacity"
+            className="w-full rounded-lg bg-[var(--accent)] text-[var(--accent-ink)] font-semibold text-[15px] py-3 btn-lift disabled:opacity-45"
           >
             {starting ? "Starting…" : `Start game (${players.length} player${players.length !== 1 ? "s" : ""})`}
           </button>

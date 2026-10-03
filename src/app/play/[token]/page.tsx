@@ -61,7 +61,7 @@ export default async function AdhocGamePage({
       <div className="mx-auto max-w-[468px] px-4 py-6 flex flex-col gap-5">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h1 className="font-display font-bold text-[19px]">{gameName}</h1>
+          <h1 className="font-display font-extrabold text-[22px] tracking-[-0.02em]">{gameName}</h1>
           {game.status === "lobby" && (
             <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[12px] font-semibold bg-[var(--accent-soft)] text-[var(--accent)]">
               <span className="w-1.5 h-1.5 rounded-full bg-current" />

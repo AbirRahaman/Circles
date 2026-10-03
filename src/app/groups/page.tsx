@@ -29,10 +29,10 @@ export default async function GroupsPage() {
         title="Your groups"
         actions={
           <>
-          <Link href="/calendar" aria-label="Calendar" className="w-8 h-8 grid place-items-center rounded-lg text-ink-2 hover:bg-surface-2 hover:text-ink">
+          <Link href="/calendar" aria-label="Calendar" className="w-8 h-8 grid place-items-center rounded-lg text-ink-2 hover:bg-surface-2 hover:text-ink icon-squish">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="16" rx="2.5" /><path d="M8 3v4M16 3v4M3 10h18" /></svg>
           </Link>
-          <Link href="/profile" aria-label="You" className="w-8 h-8 grid place-items-center rounded-lg text-ink-2 hover:bg-surface-2 hover:text-ink">
+          <Link href="/profile" aria-label="You" className="w-8 h-8 grid place-items-center rounded-lg text-ink-2 hover:bg-surface-2 hover:text-ink icon-squish">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4" /><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" /></svg>
           </Link>
           </>
@@ -52,14 +52,14 @@ export default async function GroupsPage() {
                 <Link
                   key={group!.id}
                   href={`/g/${group!.id}`}
-                  className="flex items-center gap-3 px-3.5 py-3 border-b border-line last:border-b-0 hover:bg-surface-2"
+                  className="row-press flex items-center gap-3 px-3.5 py-3 border-b border-line last:border-b-0 hover:bg-surface-2"
                 >
-                  <Avatar id={group!.id} name={group!.name} size={38} />
+                  <span className="pop-hover"><Avatar id={group!.id} name={group!.name} size={38} /></span>
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold truncate">{group!.name}</div>
                     <div className="text-[12.5px] text-ink-2">{role === "admin" ? "You're an admin" : "Member"}</div>
                   </div>
-                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="text-ink-3 shrink-0">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="text-ink-3 shrink-0 chevron-nudge">
                     <path d="M9 6l6 6-6 6" />
                   </svg>
                 </Link>
@@ -80,9 +80,9 @@ export default async function GroupsPage() {
           <SectionHead title="Quick play" />
           <Link
             href="/play"
-            className="flex items-center gap-3 rounded-xl border border-line bg-surface px-3.5 py-3 shadow-card hover:bg-surface-2 transition-colors"
+            className="quickplay-row row-press flex items-center gap-3 rounded-xl border border-line bg-surface px-3.5 py-3 shadow-card hover:bg-surface-2 transition-colors"
           >
-            <div className="w-9 h-9 rounded-lg bg-accent-soft flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-lg bg-accent-soft flex items-center justify-center shrink-0 tilt-hover">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--accent)" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="3" width="18" height="18" rx="3.5" />
                 <circle cx="8.5" cy="8.5" r="1.3" />
@@ -95,7 +95,7 @@ export default async function GroupsPage() {
               <div className="font-semibold text-[14.5px]">Play a game</div>
               <div className="text-[12.5px] text-ink-2">Start a card game and share the link with anyone</div>
             </div>
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="text-ink-3 shrink-0">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="text-ink-3 shrink-0 chevron-nudge">
               <path d="M9 6l6 6-6 6" />
             </svg>
           </Link>

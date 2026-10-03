@@ -170,3 +170,68 @@ input:focus, textarea:focus, select:focus {
 /* Pages still use `font-mono` where digits line up in columns. There is no
    mono face any more — keep the alignment, drop the typewriter. */
 .font-mono { font-variant-numeric: tabular-nums; letter-spacing: 0; }
+
+/* ── Livelier interactions (Partiful energy) ─────────────────────── */
+
+/* Buttons: lift on hover, squish on press */
+button:not(:disabled),
+[role="button"]:not(:disabled),
+summary {
+  transition: background 0.15s, color 0.15s, transform 0.12s, box-shadow 0.15s;
+}
+
+/* Primary buttons get a colored shadow that swells on hover */
+.btn-lift {
+  box-shadow: 0 2px 8px rgba(26,122,114,0.2);
+}
+.btn-lift:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(26,122,114,0.28);
+}
+.btn-lift:active {
+  transform: scale(0.96) translateY(0);
+  transition-duration: 0.06s;
+}
+
+/* Card rows: subtle squeeze + chevron nudge */
+.row-press:active {
+  transform: scale(0.985);
+  transition-duration: 0.06s;
+}
+.row-press:hover .chevron-nudge {
+  transform: translateX(2px);
+}
+.chevron-nudge {
+  transition: transform 0.15s;
+}
+
+/* Avatars & icons: pop on hover with spring curve */
+.pop-hover {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.row-press:hover .pop-hover,
+.quickplay-row:hover .pop-hover {
+  transform: scale(1.08);
+}
+
+/* Quick-play icon: tilt on hover */
+.quickplay-row:hover .tilt-hover {
+  transform: scale(1.08) rotate(-6deg);
+}
+.tilt-hover {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Icon buttons: squish on press */
+.icon-squish:active {
+  transform: scale(0.88);
+  transition-duration: 0.06s;
+}
+
+/* Status chips: pop on hover */
+.chip-pop {
+  transition: transform 0.12s;
+}
+.chip-pop:hover {
+  transform: scale(1.05);
+}

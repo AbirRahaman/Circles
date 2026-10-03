@@ -6,7 +6,7 @@ import "./globals.css";
    Display: Fraunces — optical-size serif that adds warmth to headings.
    The app feels like it belongs to friends, not a project manager. */
 const sans = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-sans" });
-const display = Fraunces({ subsets: ["latin"], variable: "--font-display" });
+const display = Fraunces({ subsets: ["latin"], weight: ["400", "600", "700", "800"], variable: "--font-display" });
 
 export const metadata: Metadata = {
   title: "Socius",

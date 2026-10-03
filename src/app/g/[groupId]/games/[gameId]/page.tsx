@@ -41,7 +41,7 @@ export default async function GamePage({
   return (
     <>
       <div className="flex items-center justify-between gap-2">
-        <h1 className="font-display font-bold text-[19px]">{title}</h1>
+        <h1 className="font-display font-extrabold text-[22px] tracking-[-0.02em]">{title}</h1>
         <Link href={`/g/${groupId}/games`} className="text-[13px] font-semibold text-ink-2 hover:text-ink">All games</Link>
       </div>
       {game.status !== "active" && (

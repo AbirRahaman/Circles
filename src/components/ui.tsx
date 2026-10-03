@@ -11,7 +11,7 @@ export function Card({ children, className = "" }: { children: React.ReactNode; 
 export function SectionHead({ title, right }: { title: string; right?: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-3 px-0.5">
-      <h2 className="text-[12.5px] font-semibold uppercase tracking-[0.06em] text-ink-2">{title}</h2>
+      <h2 className="text-[13px] font-bold uppercase tracking-[0.02em] text-ink-3">{title}</h2>
       {right}
     </div>
   );
@@ -37,7 +37,7 @@ export function Pill({
 }
 
 const variants = {
-  primary: "bg-accent text-accent-ink border-accent hover:opacity-90",
+  primary: "bg-accent text-accent-ink border-accent btn-lift",
   ghost: "bg-surface text-ink border-line-strong hover:bg-surface-2",
   quiet: "bg-surface-2 text-ink border-transparent hover:bg-surface-3",
   danger: "bg-surface text-no border-no-soft hover:bg-no-soft",
@@ -53,7 +53,7 @@ type ButtonProps = {
 export function Button({ children, variant = "primary", size = "md", className = "", ...rest }: ButtonProps) {
   const pad = size === "sm" ? "px-3 py-1.5 text-[13px] rounded-md" : "px-4 min-h-11 text-[15px] rounded-lg";
   return (
-    <button {...rest} className={`inline-flex items-center justify-center gap-2 font-semibold border transition-colors disabled:opacity-45 ${variants[variant]} ${pad} ${className}`}>
+    <button {...rest} className={`inline-flex items-center justify-center gap-2 font-semibold border transition-[background,color,transform,box-shadow] duration-150 active:scale-[0.96] active:duration-[60ms] disabled:opacity-45 ${variants[variant]} ${pad} ${className}`}>
       {children}
     </button>
   );
@@ -64,7 +64,7 @@ export function LinkButton({ href, children, variant = "primary", size = "md", c
 }) {
   const pad = size === "sm" ? "px-3 py-1.5 text-[13px] rounded-md" : "px-4 min-h-11 text-[15px] rounded-lg";
   return (
-    <Link href={href} className={`inline-flex items-center justify-center gap-2 font-semibold border transition-colors ${variants[variant]} ${pad} ${className}`}>
+    <Link href={href} className={`inline-flex items-center justify-center gap-2 font-semibold border transition-[background,color,transform,box-shadow] duration-150 active:scale-[0.96] active:duration-[60ms] ${variants[variant]} ${pad} ${className}`}>
       {children}
     </Link>
   );
@@ -114,7 +114,7 @@ export function ProgressBar({ pct, tone = "accent" }: { pct: number; tone?: "acc
 export function Empty({ title, children }: { title: string; children?: React.ReactNode }) {
   return (
     <div className="text-center px-5 py-7 border border-line rounded-xl bg-surface">
-      <h3 className="font-semibold text-[15px] mb-1">{title}</h3>
+      <h3 className="font-display font-bold text-[18px] tracking-[-0.015em] mb-1">{title}</h3>
       <p className="text-[13px] text-ink-2">{children}</p>
     </div>
   );

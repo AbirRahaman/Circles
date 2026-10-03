@@ -17,7 +17,7 @@ export default function PlayPage() {
             <rect x="4" y="6" width="24" height="20" rx="3" />
             <path d="M16 11v10M11 16h10" />
           </svg>
-          <h1 className="font-display font-bold text-[22px]">Play a Game</h1>
+          <h1 className="font-display font-extrabold text-[24px] tracking-[-0.025em]">Play a Game</h1>
           <p className="text-[14px] text-[var(--ink-2)] max-w-[280px]">
             Pick a game, share the link, and play with anyone — no account needed.
           </p>
