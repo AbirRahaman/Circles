@@ -637,41 +637,13 @@ export default async function EventPage({
         </>
       )}
 
-      {event.status === "confirmed" && (
+      {/* ── Potluck ──────────────────────────────────────────────── */}
+      {event.status !== "cancelled" && (
         <>
-          <Card className="p-3.5 flex flex-col gap-3">
-            <h2 className="text-[12.5px] font-semibold uppercase tracking-[0.06em] text-ink-2">{eventOver ? "Who was there" : "Are you coming?"}</h2>
-            <RsvpControl groupId={groupId} eventId={eventId} mine={myRsvp} />
-            <div className="flex flex-col gap-2">
-              {(eventOver
-                ? ([["going", "Went", "go"], ["maybe", "Maybe", "maybe"], ["not_going", "Didn’t", "no"]] as const)
-                : ([["going", "Going", "go"], ["maybe", "Maybe", "maybe"], ["not_going", "Out", "no"]] as const)
-              ).map(([key, label, tone]) => {
-                const list = rsvps.filter((r) => r.response === key);
-                if (!list.length) return null;
-                return (
-                  <div key={key} className="flex items-start gap-2">
-                    <Pill tone={tone}>{label} {list.length}</Pill>
-                    <span className="text-[13.5px] flex-1">{list.map((r) => nameOf(r.user_id)).join(", ")}</span>
-                  </div>
-                );
-              })}
-              {members.filter((m) => !rsvps.some((r) => r.user_id === m.id)).length > 0 && (
-                <div className="flex items-start gap-2">
-                  <Pill>Silent</Pill>
-                  <span className="text-[13.5px] text-ink-2 flex-1">
-                    {members.filter((m) => !rsvps.some((r) => r.user_id === m.id)).map((m) => m.name).join(", ")}
-                  </span>
-                </div>
-              )}
-            </div>
-          </Card>
-
-          {/* ── Potluck ──────────────────────────────────────────────── */}
           {event.potluck_enabled ? (
             <section className="flex flex-col gap-2.5">
               <SectionHead
-                title="Who's bringing what"
+                title="Who’s bringing what"
                 right={
                   <span className="flex items-center gap-2.5">
                     {potluck.length > 0 && <span className="text-[12.5px] text-ink-3">{claimedItems.length} claimed · {unclaimedItems.length} open</span>}
@@ -746,11 +718,11 @@ export default async function EventPage({
 
               <Disclosure label={potluck.length ? "Add something" : "Start the list"}>
                 <form action={addPotluckItem.bind(null, groupId, eventId)} className="flex flex-col gap-3">
-                  <Field label="What's needed"><input name="title" required maxLength={120} placeholder="Chips and guac" /></Field>
+                  <Field label="What’s needed"><input name="title" required maxLength={120} placeholder="Chips and guac" /></Field>
                   <Field label="Note (optional)"><input name="note" maxLength={200} placeholder="Store-bought is fine" /></Field>
                   <label className="flex items-center gap-2 text-[13.5px]">
                     <input type="checkbox" name="claim_self" defaultChecked className="w-4 h-4" />
-                    I'm bringing this
+                    I’m bringing this
                   </label>
                   <p className="text-[12px] text-ink-2">
                     Uncheck to post it as an open item for someone else to claim.
@@ -759,13 +731,45 @@ export default async function EventPage({
                 </form>
               </Disclosure>
             </section>
-          ) : canManage && (
+          ) : canManage && event.status !== "cancelled" && (
             <form action={togglePotluck.bind(null, groupId, eventId)}>
               <SubmitButton variant="ghost" size="sm" pendingLabel="Enabling…" className="w-full">
                 Enable potluck sign-ups
               </SubmitButton>
             </form>
           )}
+        </>
+      )}
+
+      {event.status === "confirmed" && (
+        <>
+          <Card className="p-3.5 flex flex-col gap-3">
+            <h2 className="text-[12.5px] font-semibold uppercase tracking-[0.06em] text-ink-2">{eventOver ? "Who was there" : "Are you coming?"}</h2>
+            <RsvpControl groupId={groupId} eventId={eventId} mine={myRsvp} />
+            <div className="flex flex-col gap-2">
+              {(eventOver
+                ? ([["going", "Went", "go"], ["maybe", "Maybe", "maybe"], ["not_going", "Didn’t", "no"]] as const)
+                : ([["going", "Going", "go"], ["maybe", "Maybe", "maybe"], ["not_going", "Out", "no"]] as const)
+              ).map(([key, label, tone]) => {
+                const list = rsvps.filter((r) => r.response === key);
+                if (!list.length) return null;
+                return (
+                  <div key={key} className="flex items-start gap-2">
+                    <Pill tone={tone}>{label} {list.length}</Pill>
+                    <span className="text-[13.5px] flex-1">{list.map((r) => nameOf(r.user_id)).join(", ")}</span>
+                  </div>
+                );
+              })}
+              {members.filter((m) => !rsvps.some((r) => r.user_id === m.id)).length > 0 && (
+                <div className="flex items-start gap-2">
+                  <Pill>Silent</Pill>
+                  <span className="text-[13.5px] text-ink-2 flex-1">
+                    {members.filter((m) => !rsvps.some((r) => r.user_id === m.id)).map((m) => m.name).join(", ")}
+                  </span>
+                </div>
+              )}
+            </div>
+          </Card>
 
           {/* ── Getting there ─────────────────────────────────────────── */}
           <section className="flex flex-col gap-2.5">

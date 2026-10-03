@@ -30,7 +30,7 @@ export function NewPlanDateFields({
 }) {
   const [settled, setSettled] = useState("yes");
   const [kind, setKind] = useState("outing");
-  const [dateHint, setDateHint] = useState<"specific" | "month" | "none">("specific");
+  const [dateHint, setDateHint] = useState<"specific" | "month" | "none">("month");
 
   const isProposal = settled === "no";
   const isTrip = kind === "trip";

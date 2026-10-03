@@ -48,7 +48,7 @@ export function EventCard({ groupId, event: e, muted = false }: { groupId: strin
       href={`/g/${groupId}/events/${e.id}`}
       className={muted
         ? "block px-3.5 py-2.5 rounded-lg bg-surface-2 border border-line hover:bg-surface-3"
-        : "block px-3.5 py-3 border-b border-line last:border-b-0 hover:bg-surface-2"}
+        : "block px-3.5 py-3 bg-surface border border-line rounded-xl shadow-card hover:bg-surface-2"}
     >
       <div className="flex items-center justify-between gap-3">
         <span className="font-semibold text-[15.5px] truncate">

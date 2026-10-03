@@ -83,7 +83,7 @@ export default async function PlansTab({ params }: { params: Promise<{ groupId: 
         right={<LinkButton href={`/g/${groupId}/events/new`} size="sm">Plan something</LinkButton>}
       />
       {upcoming.length ? (
-        <Card>{upcoming.map((e) => <EventCard key={e.id} groupId={groupId} event={e} />)}</Card>
+        <div className="flex flex-col gap-2">{upcoming.map((e) => <EventCard key={e.id} groupId={groupId} event={e} />)}</div>
       ) : (
         <Empty title="Nothing on the calendar">Propose a few times and let everyone vote.</Empty>
       )}
