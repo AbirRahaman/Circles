@@ -13,6 +13,20 @@ import {
   setPyramidMaster, setBusDealer,
 } from "@/app/actions/games";
 
+type Result = { ok: true } | { ok: false; error: string };
+type ActionOverrides = {
+  makeGuess?: (gameId: string, guess: Guess) => Promise<Result>;
+  revealSlot?: (gameId: string) => Promise<Result>;
+  finishPyramid?: (gameId: string) => Promise<Result>;
+  tiebreakDraw?: (gameId: string) => Promise<Result>;
+  busGuess?: (gameId: string, guess: Guess) => Promise<Result>;
+  finishGame?: (gameId: string) => Promise<Result>;
+  abandonGame?: (gameId: string) => Promise<Result>;
+  setPersona?: (gameId: string, persona: string) => Promise<Result>;
+  setPyramidMaster?: (gameId: string, masterId: string) => Promise<Result>;
+  setBusDealer?: (gameId: string, dealerId: string | "computer") => Promise<Result>;
+};
+
 type Player = { id: string; name: string; avatar_url: string | null };
 type Row = { seq: number; payload: GameEvent };
 
@@ -29,9 +43,23 @@ const ROUND_ASK: Record<Round, string> = {
 
 export function RideTheBus({
   gameId, groupId, players, initialRows, me, status, mode = "multi",
+  eventsTable = "game_events", actionOverrides,
 }: {
   gameId: string; groupId: string; players: Player[]; initialRows: Row[]; me: string; status: string; mode?: "single" | "multi";
+  eventsTable?: string; actionOverrides?: ActionOverrides;
 }) {
+  // Allow action overrides for ad-hoc games
+  const _makeGuess = actionOverrides?.makeGuess ?? makeGuess;
+  const _revealSlot = actionOverrides?.revealSlot ?? revealSlot;
+  const _finishPyramid = actionOverrides?.finishPyramid ?? finishPyramid;
+  const _tiebreakDraw = actionOverrides?.tiebreakDraw ?? tiebreakDraw;
+  const _busGuess = actionOverrides?.busGuess ?? busGuess;
+  const _finishGame = actionOverrides?.finishGame ?? finishGame;
+  const _abandonGame = actionOverrides?.abandonGame ?? abandonGame;
+  const _setPersona = actionOverrides?.setPersona ?? setPersona;
+  const _setPyramidMaster = actionOverrides?.setPyramidMaster ?? setPyramidMaster;
+  const _setBusDealer = actionOverrides?.setBusDealer ?? setBusDealer;
+
   const [rows, setRows] = useState<Row[]>(initialRows);
   const [error, setError] = useState<string | null>(null);
   const [warn, setWarn] = useState<string | null>(null);
@@ -62,7 +90,7 @@ export function RideTheBus({
     const channel = supabase
       .channel(`game:${gameId}`)
       .on("postgres_changes",
-        { event: "INSERT", schema: "public", table: "game_events", filter: `game_id=eq.${gameId}` },
+        { event: "INSERT", schema: "public", table: eventsTable, filter: `game_id=eq.${gameId}` },
         (payload) => {
           const r = payload.new as { seq: number; payload: GameEvent };
           merge([{ seq: r.seq, payload: r.payload }]);
@@ -72,7 +100,7 @@ export function RideTheBus({
     const poll = setInterval(async () => {
       if (document.hidden) return;
       const { data } = await supabase
-        .from("game_events").select("seq, payload").eq("game_id", gameId).gt("seq", lastSeq.current).order("seq");
+        .from(eventsTable).select("seq, payload").eq("game_id", gameId).gt("seq", lastSeq.current).order("seq");
       if (data?.length) merge(data as Row[]);
     }, 9000);
 
@@ -151,14 +179,14 @@ export function RideTheBus({
     const hand = (state.hands[guesser] ?? []).map((h) => h.card);
     const bad = impossible(round, g, hand);
     if (bad && warn !== bad) { setWarn(bad); return; } // tap again to confirm
-    run(() => makeGuess(gameId, g));
+    run(() => _makeGuess(gameId, g));
   };
 
   const busTap = (g: Guess) => {
     const step = busStep(state);
     const bad = impossible(step, g, busHand(state));
     if (bad && warn !== bad) { setWarn(bad); return; }
-    run(() => busGuess(gameId, g));
+    run(() => _busGuess(gameId, g));
   };
 
   return (
@@ -297,7 +325,7 @@ export function RideTheBus({
                 {state.order.map((p) => (
                   <button
                     key={p}
-                    onClick={() => run(() => setPyramidMaster(gameId, p))}
+                    onClick={() => run(() => _setPyramidMaster(gameId, p))}
                     disabled={pending}
                     className="rounded-xl border border-line-strong bg-surface px-3 py-3 text-[15px] font-semibold text-left hover:bg-surface-2 disabled:opacity-45"
                   >
@@ -348,7 +376,7 @@ export function RideTheBus({
             </div>
             {isMaster && nextSlot && (
               <button
-                onClick={() => run(() => revealSlot(gameId))}
+                onClick={() => run(() => _revealSlot(gameId))}
                 disabled={pending}
                 className="rounded-xl bg-accent text-accent-ink px-3 py-3 font-semibold disabled:opacity-45"
               >
@@ -357,7 +385,7 @@ export function RideTheBus({
             )}
             {isMaster && !nextSlot && (
               <button
-                onClick={() => run(() => finishPyramid(gameId))}
+                onClick={() => run(() => _finishPyramid(gameId))}
                 disabled={pending}
                 className="rounded-xl border border-line-strong bg-surface px-3 py-3 font-semibold hover:bg-surface-2 disabled:opacity-45"
               >
@@ -379,7 +407,7 @@ export function RideTheBus({
           <h2 className="font-display font-bold text-[16px]">Tied for most cards left</h2>
           <p className="text-[14px] text-ink-2">{state.tied.map(first).join(" and ")} draw one each. Lowest rides.</p>
           <button
-            onClick={() => run(() => tiebreakDraw(gameId))}
+            onClick={() => run(() => _tiebreakDraw(gameId))}
             disabled={pending || !inGame}
             className="rounded-xl bg-accent text-accent-ink px-3 py-3 font-semibold disabled:opacity-45"
           >
@@ -399,7 +427,7 @@ export function RideTheBus({
                 {state.order.filter((p) => p !== state.rider).map((p) => (
                   <button
                     key={p}
-                    onClick={() => run(() => setBusDealer(gameId, p))}
+                    onClick={() => run(() => _setBusDealer(gameId, p))}
                     disabled={pending}
                     className="rounded-xl border border-line-strong bg-surface px-3 py-3 text-[15px] font-semibold text-left hover:bg-surface-2 disabled:opacity-45"
                   >
@@ -407,7 +435,7 @@ export function RideTheBus({
                   </button>
                 ))}
                 <button
-                  onClick={() => run(() => setBusDealer(gameId, "computer"))}
+                  onClick={() => run(() => _setBusDealer(gameId, "computer"))}
                   disabled={pending}
                   className="rounded-xl border border-line-strong bg-surface px-3 py-3 text-[15px] font-semibold text-left hover:bg-surface-2 disabled:opacity-45"
                 >
@@ -500,19 +528,19 @@ export function RideTheBus({
       {/* Table controls */}
       <div className="flex gap-2 flex-wrap">
         {state.phase === "analysis" && status === "active" && (
-          <button onClick={() => run(() => finishGame(gameId))} disabled={pending}
+          <button onClick={() => run(() => _finishGame(gameId))} disabled={pending}
             className="flex-1 rounded-xl bg-accent text-accent-ink px-3 py-3 font-semibold disabled:opacity-45">
             File the results
           </button>
         )}
         {state.persona !== "neutral" && inGame && status === "active" && (
-          <button onClick={() => run(() => setPersona(gameId, "neutral"))} disabled={pending}
+          <button onClick={() => run(() => _setPersona(gameId, "neutral"))} disabled={pending}
             className="rounded-xl border border-line-strong px-3 py-2.5 text-[13.5px] font-semibold hover:bg-surface-2">
             Tone it down
           </button>
         )}
         {status === "active" && state.phase !== "analysis" && inGame && (
-          <button onClick={() => run(() => abandonGame(gameId))} disabled={pending}
+          <button onClick={() => run(() => _abandonGame(gameId))} disabled={pending}
             className="rounded-xl border border-no-soft text-no px-3 py-2.5 text-[13.5px] font-semibold hover:bg-no-soft">
             End game
           </button>

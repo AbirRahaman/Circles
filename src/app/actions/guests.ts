@@ -56,7 +56,7 @@ export async function revokeInviteLink(groupId: string, eventId: string) {
 
 // ── Public actions (no auth required) ────────────────────────────────
 
-async function getOrCreateGuestToken(): Promise<string> {
+export async function getOrCreateGuestToken(): Promise<string> {
   const cookieStore = await cookies();
   const existing = cookieStore.get("socius_guest")?.value;
   if (existing) return existing;

@@ -14,15 +14,38 @@ import {
   synNextRound, synEndGame, setPersona, abandonGame,
 } from "@/app/actions/games";
 
+type Result = { ok: true } | { ok: false; error: string };
+type SYNActionOverrides = {
+  synKeep?: (gameId: string) => Promise<Result>;
+  synTrade?: (gameId: string) => Promise<Result>;
+  synDealerKeepAction?: (gameId: string) => Promise<Result>;
+  synDealerSwapAction?: (gameId: string) => Promise<Result>;
+  synNextRound?: (gameId: string) => Promise<Result>;
+  synEndGame?: (gameId: string) => Promise<Result>;
+  setPersona?: (gameId: string, persona: string) => Promise<Result>;
+  abandonGame?: (gameId: string) => Promise<Result>;
+};
+
 type Player = { id: string; name: string; avatar_url: string | null };
 type Row = { seq: number; payload: SYNEvent };
 
 export function ScrewYourNeighbor({
   gameId, groupId, players, initialRows, me, status,
+  eventsTable = "game_events", actionOverrides,
 }: {
   gameId: string; groupId: string; players: Player[]; initialRows: Row[];
   me: string; status: string;
+  eventsTable?: string; actionOverrides?: SYNActionOverrides;
 }) {
+  const _synKeep = actionOverrides?.synKeep ?? synKeep;
+  const _synTrade = actionOverrides?.synTrade ?? synTrade;
+  const _synDealerKeepAction = actionOverrides?.synDealerKeepAction ?? synDealerKeepAction;
+  const _synDealerSwapAction = actionOverrides?.synDealerSwapAction ?? synDealerSwapAction;
+  const _synNextRound = actionOverrides?.synNextRound ?? synNextRound;
+  const _synEndGame = actionOverrides?.synEndGame ?? synEndGame;
+  const _setPersona = actionOverrides?.setPersona ?? setPersona;
+  const _abandonGame = actionOverrides?.abandonGame ?? abandonGame;
+
   const [rows, setRows] = useState<Row[]>(initialRows);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -44,7 +67,7 @@ export function ScrewYourNeighbor({
     const channel = supabase
       .channel(`game:${gameId}`)
       .on("postgres_changes",
-        { event: "INSERT", schema: "public", table: "game_events", filter: `game_id=eq.${gameId}` },
+        { event: "INSERT", schema: "public", table: eventsTable, filter: `game_id=eq.${gameId}` },
         (payload) => {
           const r = payload.new as { seq: number; payload: SYNEvent };
           merge([{ seq: r.seq, payload: r.payload }]);
@@ -54,7 +77,7 @@ export function ScrewYourNeighbor({
     const poll = setInterval(async () => {
       if (document.hidden) return;
       const { data } = await supabase
-        .from("game_events").select("seq, payload").eq("game_id", gameId)
+        .from(eventsTable).select("seq, payload").eq("game_id", gameId)
         .gt("seq", lastSeq.current).order("seq");
       if (data?.length) merge(data as Row[]);
     }, 9000);
@@ -165,14 +188,14 @@ export function ScrewYourNeighbor({
               </p>
               <div className="grid grid-cols-2 gap-2">
                 <button
-                  onClick={() => run(() => synKeep(gameId))}
+                  onClick={() => run(() => _synKeep(gameId))}
                   disabled={pending}
                   className="rounded-xl border border-line-strong bg-surface px-3 py-4 text-[16px] font-semibold hover:bg-surface-2 disabled:opacity-45"
                 >
                   Keep
                 </button>
                 <button
-                  onClick={() => run(() => synTrade(gameId))}
+                  onClick={() => run(() => _synTrade(gameId))}
                   disabled={pending}
                   className="rounded-xl border border-line-strong bg-surface px-3 py-4 text-[16px] font-semibold hover:bg-surface-2 disabled:opacity-45"
                 >
@@ -200,14 +223,14 @@ export function ScrewYourNeighbor({
               <p className="text-[14px] text-ink-2">Keep your card or draw from the deck.</p>
               <div className="grid grid-cols-2 gap-2">
                 <button
-                  onClick={() => run(() => synDealerKeepAction(gameId))}
+                  onClick={() => run(() => _synDealerKeepAction(gameId))}
                   disabled={pending}
                   className="rounded-xl border border-line-strong bg-surface px-3 py-4 text-[16px] font-semibold hover:bg-surface-2 disabled:opacity-45"
                 >
                   Keep
                 </button>
                 <button
-                  onClick={() => run(() => synDealerSwapAction(gameId))}
+                  onClick={() => run(() => _synDealerSwapAction(gameId))}
                   disabled={pending}
                   className="rounded-xl border border-line-strong bg-surface px-3 py-4 text-[16px] font-semibold hover:bg-surface-2 disabled:opacity-45"
                 >
@@ -225,14 +248,14 @@ export function ScrewYourNeighbor({
       {state.phase === "reveal" && status === "active" && inGame && (
         <div className="grid grid-cols-2 gap-2">
           <button
-            onClick={() => run(() => synNextRound(gameId))}
+            onClick={() => run(() => _synNextRound(gameId))}
             disabled={pending}
             className="rounded-xl bg-accent text-accent-ink px-3 py-3 font-semibold disabled:opacity-45"
           >
             Next round
           </button>
           <button
-            onClick={() => run(() => synEndGame(gameId))}
+            onClick={() => run(() => _synEndGame(gameId))}
             disabled={pending}
             className="rounded-xl border border-line-strong bg-surface px-3 py-3 font-semibold hover:bg-surface-2 disabled:opacity-45"
           >
@@ -275,13 +298,13 @@ export function ScrewYourNeighbor({
       {/* Controls */}
       <div className="flex gap-2 flex-wrap">
         {state.persona !== "neutral" && inGame && status === "active" && (
-          <button onClick={() => run(() => setPersona(gameId, "neutral"))} disabled={pending}
+          <button onClick={() => run(() => _setPersona(gameId, "neutral"))} disabled={pending}
             className="rounded-xl border border-line-strong px-3 py-2.5 text-[13.5px] font-semibold hover:bg-surface-2">
             Tone it down
           </button>
         )}
         {status === "active" && state.phase !== "done" && inGame && (
-          <button onClick={() => run(() => abandonGame(gameId))} disabled={pending}
+          <button onClick={() => run(() => _abandonGame(gameId))} disabled={pending}
             className="rounded-xl border border-no-soft text-no px-3 py-2.5 text-[13.5px] font-semibold hover:bg-no-soft">
             End game
           </button>
