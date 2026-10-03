@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useFormStatus } from "react-dom";
 
 /* People down the side, days across the top, scroll sideways through the
  * window. Your own row is the only one you can touch; toggling is local and
@@ -139,14 +140,43 @@ export function AvailabilityGrid({
         Tap your own row to mark the days you can&rsquo;t do. Everything else counts as free.
       </p>
 
-      <button
-        type="submit"
-        className={`inline-flex items-center justify-center gap-2 font-semibold border px-4 min-h-11 text-[15px] rounded-lg w-full transition-colors ${
-          dirty ? "bg-accent text-accent-ink border-accent" : "bg-surface-2 text-ink-2 border-transparent"
-        }`}
-      >
-        {dirty ? "Save my availability" : me?.answered ? "Saved" : "Save my availability"}
-      </button>
+      <GridSubmit dirty={dirty} answered={!!me?.answered} onSaved={() => setDirty(false)} />
     </form>
+  );
+}
+
+function GridSubmit({ dirty, answered, onSaved }: { dirty: boolean; answered: boolean; onSaved: () => void }) {
+  const { pending } = useFormStatus();
+  const wasPending = useRef(false);
+
+  useEffect(() => {
+    if (pending) {
+      wasPending.current = true;
+    } else if (wasPending.current) {
+      wasPending.current = false;
+      onSaved();
+    }
+  }, [pending, onSaved]);
+
+  const label = pending
+    ? "Saving…"
+    : dirty
+      ? "Save my availability"
+      : answered
+        ? "Saved"
+        : "Save my availability";
+
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className={`inline-flex items-center justify-center gap-2 font-semibold border px-4 min-h-11 text-[15px] rounded-lg w-full transition-colors ${
+        pending || dirty
+          ? "bg-accent text-accent-ink border-accent"
+          : "bg-surface-2 text-ink-2 border-transparent"
+      } ${pending ? "opacity-70 cursor-wait" : ""}`}
+    >
+      {label}
+    </button>
   );
 }
