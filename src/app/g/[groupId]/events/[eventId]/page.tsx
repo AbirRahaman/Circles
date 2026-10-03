@@ -21,6 +21,7 @@ import { AvailabilityGrid, type GridDay, type GridPerson } from "@/components/Av
 import { fetchBusyDays } from "@/lib/busy";
 import { RsvpControl } from "@/components/RsvpControl";
 import { fmtDay, fmtTime, fmtFull, fmtRange, isUnderway, effectiveEnd, toInput, plusMinutes, fmtDuration, timeAgo, num, colorFor, initials } from "@/lib/format";
+import { InviteLinkSection } from "@/components/InviteLinkSection";
 import type { Profile, RsvpResponse, VoteResponse } from "@/lib/types";
 
 type Car = {
@@ -61,6 +62,8 @@ export default async function EventPage({
     { data: gameRows },
     { data: itineraryRows },
     { data: potluckRows },
+    { data: inviteLinkRow },
+    { data: guestRsvpRows },
   ] = await Promise.all([
     supabase
       .from("events")
@@ -86,6 +89,8 @@ export default async function EventPage({
     supabase.from("games").select("id, status, created_at").eq("event_id", eventId).is("deleted_at", null).order("created_at", { ascending: false }),
     supabase.from("event_itinerary").select("*").eq("event_id", eventId).order("position").order("starts_at", { nullsFirst: false }),
     supabase.from("event_potluck").select("*").eq("event_id", eventId).order("created_at"),
+    supabase.from("event_invite_links").select("token, active").eq("event_id", eventId).maybeSingle(),
+    supabase.from("event_guest_rsvps").select("id, name, status, guest_token, contact").eq("event_id", eventId),
   ]);
   const behaviorEnabled = group.behavior_enabled && hasFeature(group.type, "behavior");
   const showTallies = hasFeature(group.type, "tallies");
@@ -217,6 +222,11 @@ export default async function EventPage({
   }[];
   const claimedItems = potluck.filter((p) => p.claimed_by);
   const unclaimedItems = potluck.filter((p) => !p.claimed_by);
+
+  // Guest invite link data
+  const inviteLink = inviteLinkRow as { token: string; active: boolean } | null;
+  const guestRsvps = (guestRsvpRows ?? []) as { id: string; name: string; status: string; guest_token: string; contact: string | null }[];
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://usesocius.com";
 
   const tallies = tallyRows ?? [];
   const tallyIds = new Set(tallies.map((t) => t.id));
@@ -768,8 +778,59 @@ export default async function EventPage({
                   </span>
                 </div>
               )}
+              {/* Guest RSVPs */}
+              {guestRsvps.length > 0 && (
+                <>
+                  {(["going", "maybe", "declined"] as const).map((key) => {
+                    const guestLabel = key === "going" ? (eventOver ? "Went" : "Going") : key === "maybe" ? "Maybe" : (eventOver ? "Didn't" : "Out");
+                    const tone = key === "going" ? "go" : key === "maybe" ? "maybe" : "no";
+                    const list = guestRsvps.filter((r) => r.status === key);
+                    if (!list.length) return null;
+                    return (
+                      <div key={`guest-${key}`} className="flex items-start gap-2">
+                        <Pill tone={tone}>{guestLabel} {list.length}</Pill>
+                        <span className="text-[13.5px] flex-1">
+                          {list.map((r, i) => (
+                            <span key={r.id}>
+                              {i > 0 && ", "}
+                              {r.name}
+                              <span className="text-[11px] text-ink-3 ml-0.5">(Guest)</span>
+                            </span>
+                          ))}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
             </div>
           </Card>
+
+          {/* ── Invite link ───────────────────────────────────────────── */}
+          {event.status !== "cancelled" && (
+            <Card className="p-3.5 flex flex-col gap-3">
+              <h2 className="text-[12.5px] font-semibold uppercase tracking-[0.06em] text-ink-2">Invite guests</h2>
+              <InviteLinkSection
+                groupId={groupId}
+                eventId={eventId}
+                existingToken={inviteLink?.token ?? null}
+                isActive={inviteLink?.active ?? false}
+                baseUrl={baseUrl}
+              />
+              {guestRsvps.some((r) => r.contact) && canManage && (
+                <details>
+                  <summary className="text-[12.5px] text-accent cursor-pointer list-none [&::-webkit-details-marker]:hidden">View guest contact info</summary>
+                  <div className="pt-2 flex flex-col gap-1.5">
+                    {guestRsvps.filter((r) => r.contact).map((r) => (
+                      <div key={r.id} className="text-[13px] text-ink-2">
+                        <span className="font-semibold text-ink">{r.name}:</span> {r.contact}
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
+            </Card>
+          )}
 
           {/* ── Getting there ─────────────────────────────────────────── */}
           <section className="flex flex-col gap-2.5">

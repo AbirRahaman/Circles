@@ -4,7 +4,7 @@ import { getVerifiedUser } from "./verify";
 
 type CookieToSet = { name: string; value: string; options?: Record<string, unknown> };
 
-const PUBLIC = ["/login", "/auth", "/api", "/privacy", "/terms"];
+const PUBLIC = ["/login", "/auth", "/api", "/privacy", "/terms", "/e"];
 
 export async function updateSession(request: NextRequest) {
   const path = request.nextUrl.pathname;
